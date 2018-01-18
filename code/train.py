@@ -30,7 +30,8 @@ if __name__ == '__main__':
         'augment': args.aug
     }
     os.makedirs(LOGS_PATH, exist_ok=True)
-    data = ImageStorage().load_train_images()
+    data = ImageStorage()
+    data.load_train_images()
 
     train_seq = TrainSequence(data, TRAIN_PARAMS)
     val_seq = ValSequence(data, TRAIN_PARAMS)
