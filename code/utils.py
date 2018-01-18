@@ -72,12 +72,19 @@ class ImageStorage:
     def load_train_images(self):
         files = [os.path.relpath(file, TRAIN_DIR) for file in
                  glob(os.path.join(TRAIN_DIR, '*', '*'))]
+        '''
         for file in tqdm(files, desc='Loading train files'):
             label = os.path.dirname(file)
             filename = os.path.basename(file)
             image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
             self.images.append(image)
             self.labels.append(label)
+        '''
+        with Pool() as p:
+            total = len(files)
+            with tqdm(total=total) as pbar:
+                for i, _ in tqdm(enumerate(p.imap_unordered(self._load_train_image, files))):
+                    pbar.update()
 
     def _load_train_image(self, file):
         label = os.path.dirname(file)

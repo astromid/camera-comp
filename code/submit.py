@@ -74,7 +74,7 @@ if __name__ == '__main__':
     labels = [ID2LABEL[id_] for id_ in ids]
     data = {
         'fname': test_seq.data.files,
-        'label': labels,
+        'camera': labels,
         'prob': probs_max
     }
     sub = pd.DataFrame(data)
