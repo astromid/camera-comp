@@ -89,7 +89,6 @@ class ImageStorage:
                     image, label = result
                     self.images.append(image)
                     self.labels.append(label)
-                    print(len(self.images))
                     pbar.update()
 
     @staticmethod
