@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     train_seq = TrainSequence(data, TRAIN_PARAMS)
     val_seq = ValSequence(data, TRAIN_PARAMS)
-    model = models.resnet50()
+    resnet = models.Resnet50()
 
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
@@ -56,7 +56,8 @@ if __name__ == '__main__':
     log_cb = LoggerCallback()
     tqdm_cb = TQDMCallback(leave_inner=False)
     # train with frozen resnet part
-    model.get_layer('resnet50').trainable = False
+    resnet.trainable = False
+    model = resnet.model
     hist_f = model.fit_generator(
         generator=train_seq,
         steps_per_epoch=len(train_seq),
@@ -66,7 +67,8 @@ if __name__ == '__main__':
         validation_data=val_seq,
         validation_steps=len(val_seq)
     )
-    model.get_layer('resnet50').trainable = True
+    resnet.trainable = True
+    model = resnet.model
     hist = model.fit_generator(
         generator=train_seq,
         steps_per_epoch=len(train_seq),

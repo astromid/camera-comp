@@ -13,21 +13,34 @@ from keras.applications.resnet50 import ResNet50
 N_CLASS = 10
 
 
-def resnet50():
-    i = Input(shape=(512, 512, 3))
-    res = ResNet50(
-        include_top=False,
-        weights='imagenet',
-        pooling='avg'
-    )(i)
-    dense1 = Dense(units=2048, activation='relu')(res)
-    drp1 = Dropout(rate=0.2)(dense1)
-    out = Dense(units=N_CLASS, activation='softmax')(drp1)
-    model = Model(inputs=i, outputs=out)
-    opt = optimizers.Adam()
-    model.compile(
-        optimizer=opt,
-        loss=losses.binary_crossentropy,
-        metrics=[categorical_accuracy]
-    )
-    return model
+class Resnet50:
+
+    def __init__(self):
+        i = Input(shape=(512, 512, 3))
+        res = ResNet50(
+            include_top=False,
+            weights='imagenet',
+            pooling='avg'
+        )(i)
+        dense1 = Dense(units=2048, activation='relu')(res)
+        drp1 = Dropout(rate=0.2)(dense1)
+        out = Dense(units=N_CLASS, activation='softmax')(drp1)
+        self._model = Model(inputs=i, outputs=out)
+
+    @property
+    def model(self):
+        opt = optimizers.Adam()
+        self._model.compile(
+            optimizer=opt,
+            loss=losses.binary_crossentropy,
+            metrics=[categorical_accuracy]
+        )
+        return self._model
+
+    @property
+    def trainable(self):
+        return self._model.get_layer('resnet50').trainable
+
+    @trainable.setter
+    def trainable(self, value):
+        self._model.get_layer('resnet50').trainable = value
