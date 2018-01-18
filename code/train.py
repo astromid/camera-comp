@@ -4,7 +4,8 @@ import models
 from utils import ImageStorage, TrainSequence, ValSequence
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from keras.callbacks import TensorBoard
-from keras import optimizers, losses
+from keras.optimizers import Adam, SGD
+from keras.losses import binary_crossentropy, categorical_crossentropy
 from keras.metrics import categorical_accuracy
 from utils import LoggerCallback
 from keras_tqdm import TQDMCallback
@@ -56,40 +57,44 @@ if __name__ == '__main__':
     tb_cb = TensorBoard(LOGS_PATH, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()
     tqdm_cb = TQDMCallback(leave_inner=False)
-    opt = optimizers.Adam()
     model = models.resnet50()
-    # train with frozen resnet block
-    model.get_layer('resnet50').trainable = False
-    model.compile(
-        optimizer=opt,
-        loss=losses.binary_crossentropy,
-        metrics=[categorical_accuracy]
-    )
-    hist_f = model.fit_generator(
-        generator=train_seq,
-        steps_per_epoch=len(train_seq),
-        epochs=F_EPOCHS,
-        verbose=0,
-        callbacks=[log_cb, tqdm_cb],
-        validation_data=val_seq,
-        validation_steps=len(val_seq)
-    )
-    # defroze resnet block
-    model.get_layer('resnet50').trainable = True
-    model.compile(
-        optimizer=opt,
-        loss=losses.binary_crossentropy,
-        metrics=[categorical_accuracy]
-    )
-    hist = model.fit_generator(
-        generator=train_seq,
-        steps_per_epoch=len(train_seq),
-        epochs=EPOCHS,
-        verbose=0,
-        callbacks=[check_cb, reduce_cb, tb_cb, log_cb, tqdm_cb],
-        validation_data=val_seq,
-        validation_steps=len(val_seq)
-    )
+    if F_EPOCHS != 0:
+        # train with frozen resnet block
+        for layer in model.layers[:-3]:
+            layer.trainable = False
+        model.compile(
+            optimizer=Adam(),
+            loss=binary_crossentropy,
+            metrics=[categorical_accuracy]
+        )
+        hist_f = model.fit_generator(
+            generator=train_seq,
+            steps_per_epoch=len(train_seq),
+            epochs=F_EPOCHS,
+            verbose=0,
+            callbacks=[check_cb, reduce_cb, log_cb, tqdm_cb],
+            validation_data=val_seq,
+            validation_steps=len(val_seq)
+        )
+    if EPOCHS != 0:
+        # defrost resnet block
+        for layer in model.layers[:-3]:
+            layer.trainable = True
+        model.compile(
+            optimizer=Adam(),
+            loss=binary_crossentropy,
+            metrics=[categorical_accuracy]
+        )
+        hist = model.fit_generator(
+            generator=train_seq,
+            steps_per_epoch=len(train_seq),
+            epochs=EPOCHS,
+            verbose=0,
+            callbacks=[check_cb, reduce_cb, tb_cb, log_cb, tqdm_cb],
+            validation_data=val_seq,
+            validation_steps=len(val_seq),
+            initial_epoch=F_EPOCHS
+        )
     model.save(os.path.join(MODEL_DIR, 'model.h5'))
     print('Model saved successfully')
 

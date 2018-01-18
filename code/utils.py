@@ -9,7 +9,6 @@ from tqdm import tqdm
 from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
 from multiprocessing import Pool
-from joblib import Parallel, delayed
 
 LABELS = [
     'HTC-1-M7',
@@ -68,36 +67,27 @@ class ImageStorage:
         self.images = []
         self.labels = []
         self.files = None
-        pass
 
     def load_train_images(self):
         files = [os.path.relpath(file, TRAIN_DIR) for file in
                  glob(os.path.join(TRAIN_DIR, '*', '*'))]
-        '''
-        for file in tqdm(files, desc='Loading train files'):
-            label = os.path.dirname(file)
-            filename = os.path.basename(file)
-            image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-            self.images.append(image)
-            self.labels.append(label)
-        '''
-        # with Parallel(n_jobs=-1) as parallel:
         with Pool() as p:
             total = len(files)
             with tqdm(total=total) as pbar:
-                for i, result in tqdm(enumerate(p.imap(self._load_train_image, files))):
+                for i, result in enumerate(p.imap_unordered(self._load_train_image, files, chunksize=10)):
                     image, label = result
                     self.images.append(image)
                     self.labels.append(label)
                     pbar.update()
+        # flat all lists
+        self.images = [img for sublist in self.images for img in sublist]
+        self.labels = [label for sublist in self.labels for label in sublist]
 
     @staticmethod
     def _load_train_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        # self.images.append(image)
-        # self.labels.append(label)
         return image, label
 
     def load_test_images(self):
