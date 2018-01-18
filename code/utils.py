@@ -81,6 +81,7 @@ class ImageStorage:
             self.images.append(image)
             self.labels.append(label)
         '''
+        # with Parallel(n_jobs=-1) as parallel:
         with Pool() as p:
             total = len(files)
             with tqdm(total=total) as pbar:
@@ -88,9 +89,11 @@ class ImageStorage:
                     image, label = result
                     self.images.append(image)
                     self.labels.append(label)
+                    print(len(self.images))
                     pbar.update()
 
-    def _load_train_image(self, file):
+    @staticmethod
+    def _load_train_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
