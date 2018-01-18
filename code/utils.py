@@ -74,14 +74,11 @@ class ImageStorage:
         with Pool() as p:
             total = len(files)
             with tqdm(total=total) as pbar:
-                for i, result in enumerate(p.imap_unordered(self._load_train_image, files, chunksize=10)):
+                for i, result in enumerate(p.imap_unordered(self._load_train_image, files)):
                     image, label = result
                     self.images.append(image)
                     self.labels.append(label)
                     pbar.update()
-        # flat all lists
-        self.images = [img for sublist in self.images for img in sublist]
-        self.labels = [label for sublist in self.labels for label in sublist]
 
     @staticmethod
     def _load_train_image(file):
