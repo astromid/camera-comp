@@ -84,7 +84,7 @@ class ImageStorage:
         with Pool() as p:
             total = len(files)
             with tqdm(total=total) as pbar:
-                for i, result in tqdm(enumerate(p.map_unordered(self._load_train_image, files))):
+                for i, result in tqdm(enumerate(p.map(self._load_train_image, files))):
                     image, label = result
                     self.images.append(image)
                     self.labels.append(label)
