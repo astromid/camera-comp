@@ -4,6 +4,8 @@ import models
 from utils import ImageStorage, TrainSequence, ValSequence
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from keras.callbacks import TensorBoard
+from keras import optimizers, losses
+from keras.metrics import categorical_accuracy
 from utils import LoggerCallback
 from keras_tqdm import TQDMCallback
 
@@ -35,7 +37,6 @@ if __name__ == '__main__':
 
     train_seq = TrainSequence(data, TRAIN_PARAMS)
     val_seq = ValSequence(data, TRAIN_PARAMS)
-    resnet = models.Resnet50()
 
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
@@ -55,9 +56,15 @@ if __name__ == '__main__':
     tb_cb = TensorBoard(LOGS_PATH, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()
     tqdm_cb = TQDMCallback(leave_inner=False)
-    # train with frozen resnet part
-    resnet.trainable = False
-    model = resnet.model
+    opt = optimizers.Adam()
+    model = models.resnet50()
+    # train with frozen resnet block
+    model.get_layer('resnet50').trainable = False
+    model.compile(
+        optimizer=opt,
+        loss=losses.binary_crossentropy,
+        metrics=[categorical_accuracy]
+    )
     hist_f = model.fit_generator(
         generator=train_seq,
         steps_per_epoch=len(train_seq),
@@ -67,8 +74,13 @@ if __name__ == '__main__':
         validation_data=val_seq,
         validation_steps=len(val_seq)
     )
-    resnet.trainable = True
-    model = resnet.model
+    # defroze resnet block
+    model.get_layer('resnet50').trainable = True
+    model.compile(
+        optimizer=opt,
+        loss=losses.binary_crossentropy,
+        metrics=[categorical_accuracy]
+    )
     hist = model.fit_generator(
         generator=train_seq,
         steps_per_epoch=len(train_seq),
