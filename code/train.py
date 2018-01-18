@@ -10,6 +10,8 @@ from keras_tqdm import TQDMCallback
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name')
+    # number of epochs with frozen resnet part
+    parser.add_argument('--f_epochs', type=int)
     parser.add_argument('--epochs', type=int)
     parser.add_argument('--batch', type=int)
     parser.add_argument('--bal', type=int, default=0)
@@ -19,6 +21,7 @@ if __name__ == '__main__':
     ROOT_DIR = '..'
     MODEL_DIR = os.path.join(ROOT_DIR, 'models', args.name)
     LOGS_PATH = os.path.join(MODEL_DIR, 'logs')
+    F_EPOCHS = args.f_epochs
     EPOCHS = args.epochs
     BATCH_SIZE = args.batch
     TRAIN_PARAMS = {
@@ -51,6 +54,16 @@ if __name__ == '__main__':
     tb_cb = TensorBoard(LOGS_PATH, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()
     tqdm_cb = TQDMCallback(leave_inner=False)
+    # train with frozen resnet part
+    hist_f = model.fit_generator(
+        generator=train_seq,
+        steps_per_epoch=len(train_seq),
+        epochs=F_EPOCHS,
+        verbose=0,
+        callbacks=[log_cb, tqdm_cb],
+        validation_data=val_seq,
+        validation_steps=len(val_seq)
+    )
     hist = model.fit_generator(
         generator=train_seq,
         steps_per_epoch=len(train_seq),
