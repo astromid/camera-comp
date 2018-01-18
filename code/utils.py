@@ -9,6 +9,7 @@ from tqdm import tqdm
 from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
 from multiprocessing import Pool
+from joblib import Parallel, delayed
 
 LABELS = [
     'HTC-1-M7',
@@ -83,15 +84,19 @@ class ImageStorage:
         with Pool() as p:
             total = len(files)
             with tqdm(total=total) as pbar:
-                for i, _ in tqdm(enumerate(p.imap_unordered(self._load_train_image, files))):
+                for i, result in tqdm(enumerate(p.map_unordered(self._load_train_image, files))):
+                    image, label = result
+                    self.images.append(image)
+                    self.labels.append(label)
                     pbar.update()
 
     def _load_train_image(self, file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        self.images.append(image)
-        self.labels.append(label)
+        # self.images.append(image)
+        # self.labels.append(label)
+        return image, label
 
     def load_test_images(self):
         self.files = [os.path.relpath(file, TEST_DIR) for file in
