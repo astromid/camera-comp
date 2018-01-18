@@ -65,9 +65,10 @@ class ImageStorage:
     def __init__(self):
         self.images = []
         self.labels = []
+        self.files = None
         pass
 
-    def _load_train_images(self):
+    def load_train_images(self):
         files = [os.path.relpath(file, TRAIN_DIR) for file in
                  glob(os.path.join(TRAIN_DIR, '*', '*'))]
         for file in tqdm(files, desc='Loading train files'):
@@ -77,16 +78,15 @@ class ImageStorage:
             self.images.append(image)
             self.labels.append(label)
 
-    def _load_test_images(self):
-        self.images = []
-        files = [os.path.relpath(file, TEST_DIR) for file in
-                 glob(os.path.join(TEST_DIR, '*'))]
-        for file in tqdm(files, desc='Loading test files'):
+    def load_test_images(self):
+        self.files = [os.path.relpath(file, TEST_DIR) for file in
+                      glob(os.path.join(TEST_DIR, '*'))]
+        for file in tqdm(self.files, desc='Loading test files'):
             filename = os.path.basename(file)
             image = cv2.imread(os.path.join(TEST_DIR, filename))
             self.images.append(image)
 
-    def _shuffle_data(self):
+    def shuffle_data(self):
         assert len(self.images) == len(self.labels)
         data = list(zip(self.images, self.labels))
         np.random.shuffle(data)
@@ -98,7 +98,6 @@ class ImageStorage:
 class ImageSequence(Sequence):
 
     def __init__(self, data, params):
-        self.balance = None
         self.batch_size = params['batch_size']
         self.augment = params['augment']
         self.data = data
@@ -153,6 +152,9 @@ class TrainSequence(ImageSequence):
         else:
             weights = compute_sample_weight('balanced', label_ids)
             return images_batch, labels_batch, weights
+
+    def on_epoch_end(self):
+        self.data.shuffle_data()
 
 
 class ValSequence(ImageSequence):

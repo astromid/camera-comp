@@ -12,3 +12,22 @@ from keras.applications.resnet50 import ResNet50
 
 N_CLASS = 10
 
+
+def resnet50():
+    i = Input(shape=(512, 512, 3))
+    res = ResNet50(
+        include_top=False,
+        weights='imagenet',
+        pooling='avg'
+    )(i)
+    dense1 = Dense(units=2048, activation='relu')(res)
+    drp1 = Dropout(rate=0.2)(dense1)
+    out = Dense(units=N_CLASS, activation='softmax')(drp1)
+    model = Model(inputs=i, outputs=out)
+    opt = optimizers.Adam()
+    model.compile(
+        optimizer=opt,
+        loss=losses.binary_crossentropy,
+        metrics=[categorical_accuracy]
+    )
+    return model
