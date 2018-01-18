@@ -8,6 +8,7 @@ from keras.callbacks import Callback
 from tqdm import tqdm
 from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
+from multiprocessing import Pool
 
 LABELS = [
     'HTC-1-M7',
@@ -77,6 +78,13 @@ class ImageStorage:
             image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
             self.images.append(image)
             self.labels.append(label)
+
+    def _load_train_image(self, file):
+        label = os.path.dirname(file)
+        filename = os.path.basename(file)
+        image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
+        self.images.append(image)
+        self.labels.append(label)
 
     def load_test_images(self):
         self.files = [os.path.relpath(file, TEST_DIR) for file in

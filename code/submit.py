@@ -51,7 +51,8 @@ if __name__ == '__main__':
         'batch_size': BATCH_SIZE,
         'augment': 0
     }
-    data = ImageStorage().load_test_images()
+    data = ImageStorage()
+    data.load_test_images()
     test_seq = TestSequence(data, TEST_PARAMS)
     model = load_model(MODEL_PATH)
     probs = model.predict_generator(
