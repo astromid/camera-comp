@@ -76,7 +76,7 @@ if __name__ == '__main__':
             validation_data=val_seq,
             validation_steps=len(val_seq)
         )
-    if EPOCHS != 0:
+    if EPOCHS > F_EPOCHS:
         # defrost resnet block
         for layer in model.layers[:-3]:
             layer.trainable = True
