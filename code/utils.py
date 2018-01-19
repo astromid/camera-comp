@@ -131,7 +131,23 @@ class ImageSequence(Sequence):
 
     @staticmethod
     def _augment_image(image):
-        return image
+        return 0
+
+    @staticmethod
+    def _jpeg_compression(image, rate):
+        return 0
+
+    @staticmethod
+    def _bicubic_resize(image, rate):
+        return 0
+
+    @staticmethod
+    def _gamma_correction(image, rate):
+        return 0
+
+    @staticmethod
+    def _rotation(image, angle):
+        return 0
 
 
 class TrainSequence(ImageSequence):
