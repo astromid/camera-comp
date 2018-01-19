@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import argparse
+import utils
 from keras.models import load_model
 from utils import ImageStorage, TestSequence
 
@@ -13,9 +14,8 @@ if __name__ == '__main__':
     parser.add_argument('--aug', type=int, default=0)
     args = parser.parse_args()
 
-    ROOT_DIR = '..'
-    MODELS_DIR = os.path.join(ROOT_DIR, 'models')
-    SUB_DIR = os.path.join(ROOT_DIR, 'subs')
+    MODELS_DIR = os.path.join(utils.ROOT_DIR, 'models')
+    SUB_DIR = os.path.join(utils.ROOT_DIR, 'subs')
     SUB_PROB_DIR = os.path.join(SUB_DIR, 'probs')
     N_AUG = args.aug
 
@@ -34,19 +34,6 @@ if __name__ == '__main__':
         SUB_PROB_PATH = os.path.join(SUB_PROB_DIR, args.name + '-best' + sub_end)
 
     BATCH_SIZE = args.batch
-    LABELS = [
-        'HTC-1-M7',
-        'iPhone-4s',
-        'iPhone-6',
-        'LG-Nexus-5x',
-        'Motorola-Droid-Maxx',
-        'Motorola-Nexus-6',
-        'Motorola-X',
-        'Samsung-Galaxy-Note3',
-        'Samsung-Galaxy-S4',
-        'Sony-NEX-7'
-    ]
-    ID2LABEL = {i: label for i, label in enumerate(LABELS)}
     TEST_PARAMS = {
         'batch_size': BATCH_SIZE,
         'augment': 0
@@ -71,7 +58,7 @@ if __name__ == '__main__':
             probs += aug_probs
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)
-    labels = [ID2LABEL[id_] for id_ in ids]
+    labels = [utils.ID2LABEL[id_] for id_ in ids]
     data = {
         'fname': test_seq.data.files,
         'camera': labels,

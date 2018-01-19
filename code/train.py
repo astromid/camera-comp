@@ -1,6 +1,7 @@
 import os
 import argparse
 import models
+import utils
 from utils import ImageStorage, TrainSequence, ValSequence
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from keras.callbacks import TensorBoard
@@ -21,8 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--aug', type=int, default=0)
     args = parser.parse_args()
 
-    ROOT_DIR = '..'
-    MODEL_DIR = os.path.join(ROOT_DIR, 'models', args.name)
+    MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
     LOGS_PATH = os.path.join(MODEL_DIR, 'logs')
     F_EPOCHS = args.f_epochs
     EPOCHS = args.epochs

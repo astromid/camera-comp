@@ -30,7 +30,7 @@ ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
 
-# change built-in print with tqdm.write
+# change built-in print with tqdm_print
 old_print = print
 
 
@@ -129,7 +129,8 @@ class ImageSequence(Sequence):
             w_start = np.random.randint(0, w - CROP_SIDE)
         return image[h_start:h_start + CROP_SIDE, w_start:w_start + CROP_SIDE]
 
-    def _augment_image(self, image):
+    @staticmethod
+    def _augment_image(image):
         return image
 
 
