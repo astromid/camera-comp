@@ -73,14 +73,13 @@ if __name__ == '__main__':
             steps_per_epoch=len(train_seq),
             epochs=F_EPOCHS,
             verbose=0,
-            callbacks=[check_cb, reduce_cb, log_cb, tqdm_cb],
+            callbacks=[log_cb, tqdm_cb],
             validation_data=val_seq,
             validation_steps=len(val_seq)
         )
     if EPOCHS > F_EPOCHS:
         # defrost resnet block
         for layer in model.get_layer('resnet50').layers:
-        # for layer in model.layers:
             layer.trainable = True
         model.compile(
             optimizer=Adam(),

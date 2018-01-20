@@ -197,7 +197,7 @@ class TrainSequence(ImageSequence):
     def __init__(self, data, params):
         super().__init__(data, params)
         # shuffle before start
-        # self.on_epoch_end()
+        self.on_epoch_end()
         self.balance = params['balance']
 
     def __getitem__(self, idx):
@@ -223,8 +223,7 @@ class TrainSequence(ImageSequence):
             return images_batch, labels_batch, weights
 
     def on_epoch_end(self):
-        # self.data.shuffle_train_data()
-        pass
+        self.data.shuffle_train_data()
 
 
 class ValSequence(ImageSequence):
