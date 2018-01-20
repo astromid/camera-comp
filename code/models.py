@@ -5,7 +5,7 @@ from keras.applications.resnet50 import ResNet50
 
 
 def resnet50():
-    i = BatchNormalization(input_shape=(512, 512, 3))
+    i = BatchNormalization(input_shape=(512, 512, 3)).output
     base_model = ResNet50(
         include_top=False,
         weights='imagenet',

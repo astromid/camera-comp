@@ -77,14 +77,14 @@ class ImageStorage:
         with Pool() as p:
             total = len(train_files)
             with tqdm(desc='Loading train files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, train_files, chunksize=10):
+                for results in p.imap_unordered(self._load_train_image, train_files, chunksize=15):
                     images, labels = results
                     self.images.append(images)
                     self.labels.append(labels)
                     pbar.update()
             total = len(val_files)
             with tqdm(desc='Loading validation files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, val_files, chunksize=10):
+                for results in p.imap_unordered(self._load_train_image, val_files, chunksize=15):
                     images, labels = results
                     self.val_images.append(images)
                     self.val_labels.append(labels)
@@ -96,7 +96,7 @@ class ImageStorage:
         with Pool() as p:
             total = len(files)
             with tqdm(desc='Loading test files', total=total) as pbar:
-                for images in p.imap_unordered(self._load_test_image, files, chunksize=10):
+                for images in p.imap_unordered(self._load_test_image, files, chunksize=15):
                     self.images.append(images)
                     pbar.update()
         self.files = files
