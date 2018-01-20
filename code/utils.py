@@ -246,6 +246,9 @@ class ValSequence(ImageSequence):
         # self.mean = mean
         self.balance = params['balance']
 
+    def __len__(self):
+        return np.ceil(len(self.data.val_images) / self.batch_size).astype('int')
+
     def __getitem__(self, idx):
         x = self.data.val_images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.data.val_labels[idx * self.batch_size:(idx + 1) * self.batch_size]

@@ -12,11 +12,12 @@ def resnet50():
         weights='imagenet',
         pooling='avg'
     )
+    for layer in base_model.layers:
+        layer.trainable = False
     x = base_model(norm_i)
     x = Dense(units=2048, activation='relu')(x)
     x = Dropout(rate=0.2)(x)
     out = Dense(units=utils.N_CLASS, activation='softmax')(x)
     model = Model(inputs=i, outputs=out)
-    for layer in base_model.layers:
-        layer.trainable = False
+
     return model
