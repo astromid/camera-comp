@@ -76,14 +76,14 @@ class ImageStorage:
         train_files, val_files = self._list_train_val_files(rate)
         with Pool() as p:
             total = len(train_files)
-            with tqdm(total=total) as pbar:
+            with tqdm(desc='Loading train files', total=total) as pbar:
                 for results in p.imap_unordered(self._load_train_image, train_files, chunksize=4):
                     images, labels = results
                     self.images.append(images)
                     self.labels.append(labels)
                     pbar.update()
             total = len(val_files)
-            with tqdm(total=total) as pbar:
+            with tqdm(desc='Loading validation files', total=total) as pbar:
                 for results in p.imap_unordered(self._load_train_image, val_files, chunksize=4):
                     images, labels = results
                     self.val_images.append(images)
@@ -95,7 +95,7 @@ class ImageStorage:
                  glob(os.path.join(TEST_DIR, '*'))]
         with Pool() as p:
             total = len(files)
-            with tqdm(total=total) as pbar:
+            with tqdm(desc='Loading test files', total=total) as pbar:
                 for images in p.imap_unordered(self._load_test_image, files, chunksize=4):
                     self.images.append(images)
                     pbar.update()
@@ -192,12 +192,14 @@ class ImageSequence(Sequence):
             image = cv2.GaussianBlur(image, (k_size, k_size), 0)
         return image
 
+    '''
     @staticmethod
     def _normalize_image(image, mean):
         _, _, ch = image.shape
         for i in range(ch):
             image[:, :, i] -= mean[i]
         return image
+    '''
 
 
 class TrainSequence(ImageSequence):
@@ -205,7 +207,7 @@ class TrainSequence(ImageSequence):
     def __init__(self, data, params):
         super().__init__(data, params)
         # calculate mean by channel across training dataset
-        self.mean = np.mean(self.data.images, axis=(0, 1, 2))
+        # self.mean = np.mean(self.data.images, axis=(0, 1, 2))
         # shuffle before start
         self.on_epoch_end()
         self.balance = params['balance']
@@ -219,7 +221,7 @@ class TrainSequence(ImageSequence):
         else:
             images_batch = [self._augment_image(img) for img in x]
             images_batch = [self._crop_image(img) for img in images_batch]
-        images_batch = [self._normalize_image(img, self.mean) for img in images_batch]
+        # images_batch = [self._normalize_image(img, self.mean) for img in images_batch]
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -239,9 +241,10 @@ class TrainSequence(ImageSequence):
 
 class ValSequence(ImageSequence):
 
-    def __init__(self, data, mean, params):
+    # def __init__(self, data, mean, params):
+    def __init__(self, data, params):
         super().__init__(data, params)
-        self.mean = mean
+        # self.mean = mean
         self.balance = params['balance']
 
     def __getitem__(self, idx):
@@ -250,7 +253,7 @@ class ValSequence(ImageSequence):
         label_ids = [LABEL2ID[label] for label in y]
         # no augmentation on validation time
         images_batch = [self._crop_image(img, center=True) for img in x]
-        images_batch = [self._normalize_image(img, self.mean) for img in images_batch]
+        # images_batch = [self._normalize_image(img, self.mean) for img in images_batch]
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -267,9 +270,10 @@ class ValSequence(ImageSequence):
 
 class TestSequence(ImageSequence):
 
-    def __init__(self, data, mean, params):
+    # def __init__(self, data, mean, params):
+    def __init__(self, data, params):
         super().__init__(data, params)
-        self.mean = mean
+        # self.mean = mean
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -278,6 +282,6 @@ class TestSequence(ImageSequence):
             images_batch = x
         else:
             images_batch = [self._augment_image(img) for img in x]
-        images_batch = [self._normalize_image(img, self.mean) for img in images_batch]
+        # images_batch = [self._normalize_image(img, self.mean) for img in images_batch]
         images_batch = np.array(images_batch)
         return images_batch

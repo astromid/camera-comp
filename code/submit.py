@@ -15,7 +15,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
-    MEAN = np.load(os.path.join(MODEL_DIR, 'mean.npy'))
+    # MEAN = np.load(os.path.join(MODEL_DIR, 'mean.npy'))
     SUB_DIR = os.path.join(utils.ROOT_DIR, 'subs')
     SUB_PROB_DIR = os.path.join(SUB_DIR, 'probs')
     N_AUG = args.aug
@@ -41,7 +41,8 @@ if __name__ == '__main__':
     }
     data = ImageStorage()
     data.load_test_images()
-    test_seq = TestSequence(data, MEAN, TEST_PARAMS)
+    # test_seq = TestSequence(data, MEAN, TEST_PARAMS)
+    test_seq = TestSequence(data, TEST_PARAMS)
     model = load_model(MODEL_PATH)
     probs = model.predict_generator(
         generator=test_seq,

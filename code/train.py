@@ -38,7 +38,8 @@ if __name__ == '__main__':
     data.load_train_val_images(rate=0.2)
 
     train_seq = TrainSequence(data, TRAIN_PARAMS)
-    val_seq = ValSequence(data, train_seq.mean, TRAIN_PARAMS)
+    # val_seq = ValSequence(data, train_seq.mean, TRAIN_PARAMS)
+    val_seq = ValSequence(data, TRAIN_PARAMS)
 
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
@@ -97,6 +98,6 @@ if __name__ == '__main__':
             initial_epoch=F_EPOCHS
         )
     model.save(os.path.join(MODEL_DIR, 'model.h5'))
-    np.save(os.path.join(MODEL_DIR, 'mean.npy'), train_seq.mean)
+    # np.save(os.path.join(MODEL_DIR, 'mean.npy'), train_seq.mean)
     print('Model saved successfully')
 
