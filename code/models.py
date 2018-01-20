@@ -10,10 +10,9 @@ def resnet50():
     base_model = ResNet50(
         include_top=False,
         weights='imagenet',
-        input_tensor=norm_i,
         pooling='avg'
     )
-    x = base_model.output
+    x = base_model(norm_i)
     x = Dense(units=2048, activation='relu')(x)
     x = Dropout(rate=0.2)(x)
     out = Dense(units=utils.N_CLASS, activation='softmax')(x)
