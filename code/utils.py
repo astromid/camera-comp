@@ -9,6 +9,7 @@ from tqdm import tqdm
 from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
 from multiprocessing import Pool
+from skimage.exposure import adjust_gamma
 
 LABELS = [
     'HTC-1-M7',
@@ -131,23 +132,38 @@ class ImageSequence(Sequence):
 
     @staticmethod
     def _augment_image(image):
-        return 0
-
-    @staticmethod
-    def _jpeg_compression(image, rate):
-        return 0
-
-    @staticmethod
-    def _bicubic_resize(image, rate):
-        return 0
-
-    @staticmethod
-    def _gamma_correction(image, rate):
-        return 0
-
-    @staticmethod
-    def _rotation(image, angle):
-        return 0
+        # default augmentations (only 1 from 8)
+        if np.random.rand() < 0.5:
+            flag = np.random.choice(8)
+            if flag == 0:
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+                _, image = cv2.imencode('.jpg', image, encode_param)
+                image = cv2.imdecode(image, 1)
+            if flag == 1:
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                _, image = cv2.imencode('.jpg', image, encode_param)
+                image = cv2.imdecode(image, 1)
+            if flag == 2:
+                image = cv2.resize(image, dsize=0, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
+            if flag == 3:
+                image = cv2.resize(image, dsize=0, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
+            if flag == 4:
+                image = cv2.resize(image, dsize=0, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
+            if flag == 5:
+                image = cv2.resize(image, dsize=0, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+            if flag == 6:
+                image = adjust_gamma(image, 0.8)
+            if flag == 7:
+                image = adjust_gamma(image, 1.2)
+        # additional augmentations
+        if np.random.rand() < 0.5:
+            n_rotate = np.random.choice([1, 2, 3])
+            for _ in range(n_rotate):
+                image = np.rot90(image)
+        if np.random.rand() < 0.5:
+            k_size = np.random.choice([2, 3, 4, 5])
+            image = cv2.GaussianBlur(image, (k_size, k_size), 0)
+        return image
 
 
 class TrainSequence(ImageSequence):
@@ -166,6 +182,7 @@ class TrainSequence(ImageSequence):
             images_batch = [self._crop_image(img) for img in x]
         else:
             images_batch = [self._augment_image(img) for img in x]
+            images_batch = [self._crop_image(img) for img in images_batch]
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)

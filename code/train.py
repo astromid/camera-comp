@@ -65,7 +65,8 @@ if __name__ == '__main__':
         model.compile(
             optimizer=Adam(),
             loss=binary_crossentropy,
-            metrics=[categorical_accuracy]
+            metrics=[categorical_accuracy],
+            weighted_metrics=[categorical_accuracy]
         )
         hist_f = model.fit_generator(
             generator=train_seq,
@@ -83,7 +84,8 @@ if __name__ == '__main__':
         model.compile(
             optimizer=Adam(),
             loss=binary_crossentropy,
-            metrics=[categorical_accuracy]
+            metrics=[categorical_accuracy],
+            weighted_metrics=[categorical_accuracy]
         )
         hist = model.fit_generator(
             generator=train_seq,
