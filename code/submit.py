@@ -15,7 +15,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
-    # MEAN = np.load(os.path.join(MODEL_DIR, 'mean.npy'))
     SUB_DIR = os.path.join(utils.ROOT_DIR, 'subs')
     SUB_PROB_DIR = os.path.join(SUB_DIR, 'probs')
     N_AUG = args.aug

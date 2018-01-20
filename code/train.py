@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name')
     # number of epochs with frozen resnet part
-    parser.add_argument('--f_epochs', type=int)
+    parser.add_argument('--f_epochs', type=int, default=1)
     parser.add_argument('--epochs', type=int)
     parser.add_argument('--batch', type=int)
     parser.add_argument('--bal', type=int, default=0)
@@ -38,7 +38,6 @@ if __name__ == '__main__':
     data.load_train_val_images(rate=0.2)
 
     train_seq = TrainSequence(data, TRAIN_PARAMS)
-    # val_seq = ValSequence(data, train_seq.mean, TRAIN_PARAMS)
     val_seq = ValSequence(data, TRAIN_PARAMS)
 
     check_cb = ModelCheckpoint(
@@ -79,7 +78,7 @@ if __name__ == '__main__':
         )
     if EPOCHS > F_EPOCHS:
         # defrost resnet block
-        for layer in model.layers:
+        for layer in model.get_layer('resnet50').layers:
             layer.trainable = True
         model.compile(
             optimizer=Adam(),
@@ -98,6 +97,5 @@ if __name__ == '__main__':
             initial_epoch=F_EPOCHS
         )
     model.save(os.path.join(MODEL_DIR, 'model.h5'))
-    # np.save(os.path.join(MODEL_DIR, 'mean.npy'), train_seq.mean)
     print('Model saved successfully')
 
