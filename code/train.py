@@ -67,6 +67,7 @@ if __name__ == '__main__':
             metrics=[categorical_accuracy],
             # weighted_metrics=[categorical_accuracy]
         )
+        model.summary()
         hist_f = model.fit_generator(
             generator=train_seq,
             steps_per_epoch=len(train_seq),
@@ -86,6 +87,7 @@ if __name__ == '__main__':
             metrics=[categorical_accuracy],
             # weighted_metrics=[categorical_accuracy]
         )
+        model.summary()
         hist = model.fit_generator(
             generator=train_seq,
             steps_per_epoch=len(train_seq),
