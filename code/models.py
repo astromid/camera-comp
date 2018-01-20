@@ -1,15 +1,16 @@
 import utils
 from keras.models import Model
-from keras.layers import Dense, Dropout, BatchNormalization
+from keras.layers import Dense, Dropout, BatchNormalization, Input
 from keras.applications.resnet50 import ResNet50
 
 
 def resnet50():
-    i = BatchNormalization(input_shape=(512, 512, 3)).output
+    i = Input(shape=(utils.CROP_SIDE, utils.CROP_SIDE, 3))
+    norm_i = BatchNormalization()(i)
     base_model = ResNet50(
         include_top=False,
         weights='imagenet',
-        input_tensor=i,
+        input_tensor=norm_i,
         pooling='avg'
     )
     x = base_model.output
