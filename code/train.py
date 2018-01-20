@@ -64,7 +64,7 @@ if __name__ == '__main__':
         model.compile(
             optimizer=Adam(),
             loss=binary_crossentropy,
-            metrics=[categorical_accuracy],
+            metrics=['accuracy']
             # weighted_metrics=[categorical_accuracy]
         )
         model.summary()
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         model.compile(
             optimizer=Adam(),
             loss=binary_crossentropy,
-            metrics=[categorical_accuracy],
+            metrics=['accuracy']
             # weighted_metrics=[categorical_accuracy]
         )
         model.summary()
