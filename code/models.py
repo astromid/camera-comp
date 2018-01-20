@@ -15,4 +15,6 @@ def resnet50():
     x = Dropout(rate=0.2)(x)
     out = Dense(units=utils.N_CLASS, activation='softmax')(x)
     model = Model(inputs=base_model.input, outputs=out)
+    for layer in base_model.layers:
+        layer.trainable = False
     return model

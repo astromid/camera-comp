@@ -1,8 +1,8 @@
-import numpy as np
-import pandas as pd
 import os
 import argparse
 import utils
+import numpy as np
+import pandas as pd
 from keras.models import load_model
 from utils import ImageStorage, TestSequence
 
@@ -14,7 +14,8 @@ if __name__ == '__main__':
     parser.add_argument('--aug', type=int, default=0)
     args = parser.parse_args()
 
-    MODELS_DIR = os.path.join(utils.ROOT_DIR, 'models')
+    MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
+    MEAN = np.load(os.path.join(MODEL_DIR, 'mean.npy'))
     SUB_DIR = os.path.join(utils.ROOT_DIR, 'subs')
     SUB_PROB_DIR = os.path.join(SUB_DIR, 'probs')
     N_AUG = args.aug
@@ -22,14 +23,14 @@ if __name__ == '__main__':
     if N_AUG == 0:
         sub_end = '.csv'
     else:
-        sub_end = f'-tta-{N_AUG}.csv'
+        sub_end = f'-tta{N_AUG}.csv'
 
     if args.best == 0:
-        MODEL_PATH = os.path.join(MODELS_DIR, args.name, 'model.h5')
+        MODEL_PATH = os.path.join(MODEL_DIR, 'model.h5')
         SUB_PATH = os.path.join(SUB_DIR, args.name + sub_end)
         SUB_PROB_PATH = os.path.join(SUB_PROB_DIR, args.name + sub_end)
     else:
-        MODEL_PATH = os.path.join(MODELS_DIR, args.name, 'model-best.h5')
+        MODEL_PATH = os.path.join(MODEL_DIR, 'model-best.h5')
         SUB_PATH = os.path.join(SUB_DIR, args.name + '-best' + sub_end)
         SUB_PROB_PATH = os.path.join(SUB_PROB_DIR, args.name + '-best' + sub_end)
 
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     }
     data = ImageStorage()
     data.load_test_images()
-    test_seq = TestSequence(data, TEST_PARAMS)
+    test_seq = TestSequence(data, MEAN, TEST_PARAMS)
     model = load_model(MODEL_PATH)
     probs = model.predict_generator(
         generator=test_seq,
