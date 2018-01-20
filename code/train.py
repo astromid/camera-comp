@@ -35,7 +35,7 @@ if __name__ == '__main__':
     }
     os.makedirs(LOGS_PATH, exist_ok=True)
     data = ImageStorage()
-    data.load_train_images()
+    data.load_train_val_images(rate=0.2)
 
     train_seq = TrainSequence(data, TRAIN_PARAMS)
     val_seq = ValSequence(data, train_seq.mean, TRAIN_PARAMS)
