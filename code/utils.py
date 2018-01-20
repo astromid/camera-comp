@@ -79,15 +79,15 @@ class ImageStorage:
             with tqdm(total=total) as pbar:
                 for results in p.imap_unordered(self._load_train_image, train_files, chunksize=4):
                     images, labels = results
-                    self.images += images
-                    self.labels += labels
+                    self.images.append(images)
+                    self.labels.append(labels)
                     pbar.update()
             total = len(val_files)
             with tqdm(total=total) as pbar:
                 for results in p.imap_unordered(self._load_train_image, val_files, chunksize=4):
                     images, labels = results
-                    self.val_images += images
-                    self.val_labels += labels
+                    self.val_images.append(images)
+                    self.val_labels.append(labels)
                     pbar.update()
 
     def load_test_images(self):
@@ -97,7 +97,7 @@ class ImageStorage:
             total = len(files)
             with tqdm(total=total) as pbar:
                 for images in p.imap_unordered(self._load_test_image, files, chunksize=4):
-                    self.images += images
+                    self.images.append(images)
                     pbar.update()
         self.files = files
 
