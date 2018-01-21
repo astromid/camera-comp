@@ -40,7 +40,6 @@ if __name__ == '__main__':
     }
     data = ImageStorage()
     data.load_test_images()
-    # test_seq = TestSequence(data, MEAN, TEST_PARAMS)
     test_seq = TestSequence(data, TEST_PARAMS)
     model = load_model(MODEL_PATH)
     probs = model.predict_generator(

@@ -60,6 +60,8 @@ if __name__ == '__main__':
     model = models.resnet50()
     if F_EPOCHS != 0:
         # train with frozen resnet block
+        for layer in model.layers[:-3]:
+            layer.trainable = False
         model.compile(
             optimizer=Adam(),
             loss=binary_crossentropy,
@@ -77,8 +79,7 @@ if __name__ == '__main__':
         )
     if EPOCHS > F_EPOCHS:
         # defrost resnet block
-        # for layer in model.get_layer('resnet50').layers:
-        for layer in model.layers:
+        for layer in model.layers[:-3]:
             layer.trainable = True
         model.compile(
             optimizer=Adam(),
