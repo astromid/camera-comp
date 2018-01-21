@@ -77,7 +77,8 @@ if __name__ == '__main__':
         )
     if EPOCHS > F_EPOCHS:
         # defrost resnet block
-        for layer in model.get_layer('resnet50').layers:
+        # for layer in model.get_layer('resnet50').layers:
+        for layer in model.layers:
             layer.trainable = True
         model.compile(
             optimizer=Adam(),
