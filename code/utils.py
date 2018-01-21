@@ -68,8 +68,8 @@ class ImageStorage:
     def __init__(self):
         self.images = []
         self.labels = []
-        self.val_images = []
-        self.val_labels = []
+        # self.val_images = []
+        # self.val_labels = []
         self.files = None
 
     def load_train_val_images(self, rate):
@@ -77,18 +77,18 @@ class ImageStorage:
         with Pool() as p:
             total = len(train_files)
             with tqdm(desc='Loading train files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, train_files, chunksize=1):
+                for results in p.imap_unordered(self._load_train_image, train_files):
                     images, labels = results
                     self.images.append(images)
                     self.labels.append(labels)
                     pbar.update()
-            total = len(val_files)
-            with tqdm(desc='Loading validation files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, val_files, chunksize=1):
-                    images, labels = results
-                    self.val_images.append(images)
-                    self.val_labels.append(labels)
-                    pbar.update()
+            # total = len(val_files)
+            # with tqdm(desc='Loading validation files', total=total) as pbar:
+            #     for results in p.imap_unordered(self._load_train_image, val_files):
+            #         images, labels = results
+            #         self.val_images.append(images)
+            #         self.val_labels.append(labels)
+            #         pbar.update()
 
     def load_test_images(self):
         files = [os.path.relpath(file, TEST_DIR) for file in
@@ -96,7 +96,7 @@ class ImageStorage:
         with Pool() as p:
             total = len(files)
             with tqdm(desc='Loading test files', total=total) as pbar:
-                for images in p.imap_unordered(self._load_test_image, files, chunksize=1):
+                for images in p.imap_unordered(self._load_test_image, files):
                     self.images.append(images)
                     pbar.update()
         self.files = files
@@ -126,8 +126,10 @@ class ImageStorage:
     def _list_train_val_files(rate):
         files = [os.path.relpath(file, TRAIN_DIR) for file in
                  glob(os.path.join(TRAIN_DIR, '*', '*'))]
-        labels = [os.path.dirname(file) for file in files]
-        train_files, val_files = train_test_split(files, test_size=rate, stratify=labels)
+        # labels = [os.path.dirname(file) for file in files]
+        # train_files, val_files = train_test_split(files, test_size=rate, stratify=labels)
+        train_files = files
+        val_files = []
         return train_files, val_files
 
 
@@ -232,15 +234,20 @@ class ValSequence(ImageSequence):
         super().__init__(data, params)
         self.balance = params['balance']
 
-    def __len__(self):
-        return np.ceil(len(self.data.val_images) / self.batch_size).astype('int')
+    # def __len__(self):
+    #    return np.ceil(len(self.data.val_images) / self.batch_size).astype('int')
 
     def __getitem__(self, idx):
-        x = self.data.val_images[idx * self.batch_size:(idx + 1) * self.batch_size]
-        y = self.data.val_labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        # x = self.data.val_images[idx * self.batch_size:(idx + 1) * self.batch_size]
+        # y = self.data.val_labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
+        y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
-        # no augmentation on validation time
-        images_batch = [self._crop_image(img, center=True) for img in x]
+        if self.augment == 0:
+            images_batch = [self._crop_image(img, center=True) for img in x]
+        else:
+            images_batch = [self._augment_image(img) for img in x]
+            images_batch = [self._crop_image(img, center=True) for img in images_batch]
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
