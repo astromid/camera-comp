@@ -63,19 +63,23 @@ class LoggerCallback(Callback):
         print(output)
 
 
+class CycleLRCallback(Callback):
+
+    def __init__(self):
+        super().__init__()
+
+
 class ImageStorage:
 
     def __init__(self):
         self.images = []
         self.labels = []
-        # self.val_images = []
-        # self.val_labels = []
+        self.val_images = []
+        self.val_labels = []
         self.files = []
 
     def load_train_val_images(self, rate):
-        # train_files, val_files = self._list_train_val_files(rate)
-        train_files = [os.path.relpath(file, TRAIN_DIR) for file in
-                       glob(os.path.join(TRAIN_DIR, '*', '*'))]
+        train_files, val_files = self._list_train_val_files(rate)
         with Pool() as p:
             total = len(train_files)
             with tqdm(desc='Loading train files', total=total) as pbar:
@@ -84,13 +88,13 @@ class ImageStorage:
                     self.images.append(images)
                     self.labels.append(labels)
                     pbar.update()
-            # total = len(val_files)
-            # with tqdm(desc='Loading validation files', total=total) as pbar:
-            #     for results in p.imap_unordered(self._load_train_image, val_files):
-            #         images, labels = results
-            #         self.val_images.append(images)
-            #         self.val_labels.append(labels)
-            #         pbar.update()
+            total = len(val_files)
+            with tqdm(desc='Loading validation files', total=total) as pbar:
+                for results in p.imap_unordered(self._load_train_image, val_files):
+                    images, labels = results
+                    self.val_images.append(images)
+                    self.val_labels.append(labels)
+                    pbar.update()
 
     def load_test_images(self):
         files = [os.path.relpath(file, TEST_DIR) for file in
@@ -117,13 +121,13 @@ class ImageStorage:
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        return image, label
+        return image.astype(np.uint8), label
 
     @staticmethod
     def _load_test_image(file):
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TEST_DIR, filename))
-        return image, filename
+        return image.astype(np.uint8), filename
 
     @staticmethod
     def _list_train_val_files(rate):
@@ -140,9 +144,10 @@ class ImageSequence(Sequence):
         self.batch_size = params['batch_size']
         self.augment = params['augment']
         self.data = data
+        self.len_ = 0
 
     def __len__(self):
-        return np.ceil(len(self.data.images) / self.batch_size).astype('int')
+        return np.ceil(self.len_ / self.batch_size).astype('int')
 
     @abstractmethod
     def __getitem__(self, item):
@@ -202,6 +207,7 @@ class TrainSequence(ImageSequence):
         # shuffle before start
         self.on_epoch_end()
         self.balance = params['balance']
+        self.len_ = len(self.data.images)
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -234,6 +240,7 @@ class ValSequence(ImageSequence):
     def __init__(self, data, params):
         super().__init__(data, params)
         self.balance = params['balance']
+        self.len_ = len(self.data.val_images)
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -262,6 +269,7 @@ class TestSequence(ImageSequence):
 
     def __init__(self, data, params):
         super().__init__(data, params)
+        self.len_ = len(self.data.images)
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]

@@ -8,7 +8,7 @@ from keras.callbacks import TensorBoard
 from keras.optimizers import Adam, SGD
 from keras.losses import binary_crossentropy, categorical_crossentropy
 from keras.metrics import categorical_accuracy
-from utils import LoggerCallback
+from utils import LoggerCallback, CycleLRCallback
 from keras_tqdm import TQDMCallback
 
 if __name__ == '__main__':
@@ -23,7 +23,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
-    LOGS_PATH = os.path.join(MODEL_DIR, 'logs')
     F_EPOCHS = args.f_epochs
     EPOCHS = args.epochs
     BATCH_SIZE = args.batch
@@ -32,7 +31,7 @@ if __name__ == '__main__':
         'balance': args.bal,
         'augment': args.aug
     }
-    os.makedirs(LOGS_PATH, exist_ok=True)
+    os.makedirs(MODEL_DIR, exist_ok=True)
     data = ImageStorage()
     data.load_train_val_images(rate=0.2)
 
@@ -41,27 +40,25 @@ if __name__ == '__main__':
 
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
-        monitor='val_categorical_accuracy',
+        monitor='val_loss',
         verbose=1,
         save_best_only=True
     )
     reduce_cb = ReduceLROnPlateau(
-        monitor='val_categorical_accuracy',
+        monitor='val_loss',
         factor=0.3,
         patience=5,
         verbose=1,
-        epsilon=0.001,
+        # epsilon=0.001,
         cooldown=3,
         min_lr=1e-6
     )
-    tb_cb = TensorBoard(LOGS_PATH, batch_size=BATCH_SIZE)
+    tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()
     tqdm_cb = TQDMCallback(leave_inner=False)
     model = models.resnet50()
     if F_EPOCHS != 0:
         # train with frozen resnet block
-        for layer in model.layers[:-3]:
-            layer.trainable = False
         model.compile(
             optimizer=Adam(),
             loss=binary_crossentropy,
@@ -79,7 +76,7 @@ if __name__ == '__main__':
         )
     if EPOCHS > F_EPOCHS:
         # defrost resnet block
-        for layer in model.layers[:-3]:
+        for layer in model.get_layer('resnet50').layers:
             layer.trainable = True
         model.compile(
             optimizer=Adam(),
