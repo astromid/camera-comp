@@ -53,7 +53,7 @@ class LoggerCallback(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         metrics = self.params['metrics']
-        metric_format = '{name}: {value:0.4f}'
+        metric_format = '{name}: {value:0.5f}'
         strings = [metric_format.format(
             name=metric,
             value=np.mean(logs[metric], axis=None)
@@ -154,50 +154,68 @@ class ImageSequence(Sequence):
         raise NotImplementedError
 
     @staticmethod
-    def _crop_image(image, center=False):
+    def _crop_image(args):
+        image, side_len, center = args
         h, w, _ = image.shape
-        if center is True:
-            h_start = np.floor_divide(h - CROP_SIDE, 2)
-            w_start = np.floor_divide(w - CROP_SIDE, 2)
+        if center is False:
+            h_start = np.random.randint(0, h - side_len)
+            w_start = np.random.randint(0, w - side_len)
         else:
-            h_start = np.random.randint(0, h - CROP_SIDE)
-            w_start = np.random.randint(0, w - CROP_SIDE)
-        return image[h_start:h_start + CROP_SIDE, w_start:w_start + CROP_SIDE]
+            h_start = np.floor_divide(h - side_len, 2)
+            w_start = np.floor_divide(w - side_len, 2)
+        return image[h_start:h_start + side_len, w_start:w_start + side_len]
 
     @staticmethod
-    def _augment_image(image):
+    def _augment_image(args):
+        image, center = args
         # default augmentations (only 1 from 8)
         if np.random.rand() < 0.5:
             flag = np.random.choice(8)
             if flag == 0:
-                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
-                _, image = cv2.imencode('.jpg', image, encode_param)
-                image = cv2.imdecode(image, 1)
+                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
+                enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+                _, aug_image = cv2.imencode('.jpg', aug_image, enc_param)
+                aug_image = cv2.imdecode(aug_image, 1)
             if flag == 1:
-                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                _, image = cv2.imencode('.jpg', image, encode_param)
-                image = cv2.imdecode(image, 1)
+                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
+                enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                _, aug_image = cv2.imencode('.jpg', aug_image, enc_param)
+                aug_image = cv2.imdecode(aug_image, 1)
             if flag == 2:
-                image = cv2.resize(image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
+                side_len = np.ceil(CROP_SIDE / 0.5).astype('int')
+                aug_image = ImageSequence._crop_image((image, side_len, center))
+                aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
             if flag == 3:
-                image = cv2.resize(image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
+                side_len = np.ceil(CROP_SIDE / 0.8).astype('int')
+                aug_image = ImageSequence._crop_image((image, side_len, center))
+                aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
             if flag == 4:
-                image = cv2.resize(image, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
+                side_len = np.ceil(CROP_SIDE / 1.5).astype('int')
+                aug_image = ImageSequence._crop_image((image, side_len, center))
+                aug_image = cv2.resize(aug_image, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
+                aug_image = ImageSequence._crop_image((aug_image, CROP_SIDE, center))
             if flag == 5:
-                image = cv2.resize(image, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+                side_len = np.ceil(CROP_SIDE / 2.0).astype('int')
+                aug_image = ImageSequence._crop_image((image, side_len, center))
+                aug_image = cv2.resize(aug_image, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
             if flag == 6:
-                image = adjust_gamma(image, 0.8)
+                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
+                aug_image = adjust_gamma(aug_image, 0.8)
             if flag == 7:
-                image = adjust_gamma(image, 1.2)
+                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
+                aug_image = adjust_gamma(aug_image, 1.2)
+        else:
+            aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
         # additional augmentations
         if np.random.rand() < 0.5:
             n_rotate = np.random.choice([1, 2, 3])
             for _ in range(n_rotate):
-                image = np.rot90(image)
+                aug_image = np.rot90(aug_image)
         if np.random.rand() < 0.5:
             k_size = np.random.choice([3, 5])
-            image = cv2.GaussianBlur(image, (k_size, k_size), 0)
-        return image
+            aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
+        assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
+        return aug_image
 
 
 class TrainSequence(ImageSequence):
@@ -213,16 +231,14 @@ class TrainSequence(ImageSequence):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
-        aug_batch = []
         images_batch = []
         with ThreadPool() as p:
+            args = list(zip(x, [False] * len(x)))
             if self.augment == 0:
-                for images in p.imap(self._crop_image, x):
+                for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for images in p.imap(self._augment_image, x):
-                    aug_batch.append(images)
-                for images in p.imap(self._crop_image, aug_batch):
+                for images in p.imap(self._augment_image, args):
                     images_batch.append(images)
         labels_batch = []
         for id_ in label_ids:
@@ -252,16 +268,14 @@ class ValSequence(ImageSequence):
         x = self.data.val_images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.data.val_labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
-        aug_batch = []
+        args = list(zip(x, [True] * len(x)))
         images_batch = []
         with ThreadPool() as p:
             if self.augment == 0:
-                for images in p.imap(self._crop_image, x):
+                for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for images in p.imap(self._augment_image, x):
-                    aug_batch.append(images)
-                for images in p.imap(self._crop_image, aug_batch):
+                for images in p.imap(self._augment_image, args):
                     images_batch.append(images)
         labels_batch = []
         for id_ in label_ids:
@@ -295,3 +309,18 @@ class TestSequence(ImageSequence):
                     images_batch.append(images)
         images_batch = np.array(images_batch)
         return images_batch
+
+    @staticmethod
+    def _augment_image(image, center=False):
+        # only additional augmentations for TTA
+        aug_image = image
+        if np.random.rand() < 0.5:
+            n_rotate = np.random.choice([1, 2, 3])
+            for _ in range(n_rotate):
+                aug_image = np.rot90(aug_image)
+        if np.random.rand() < 0.5:
+            k_size = np.random.choice([3, 5])
+            aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
+        assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
+        return aug_image
+
