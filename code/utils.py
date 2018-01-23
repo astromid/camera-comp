@@ -8,7 +8,7 @@ from keras.callbacks import Callback
 from tqdm import tqdm
 from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
-from multiprocessing import Pool
+from multiprocessing.pool import Pool, ThreadPool
 from skimage.exposure import adjust_gamma
 from sklearn.model_selection import train_test_split
 
@@ -80,7 +80,7 @@ class ImageStorage:
 
     def load_train_val_images(self, rate):
         train_files, val_files = self._list_train_val_files(rate)
-        with Pool() as p:
+        with ThreadPool() as p:
             total = len(train_files)
             with tqdm(desc='Loading train files', total=total) as pbar:
                 for results in p.imap_unordered(self._load_train_image, train_files):
@@ -218,7 +218,7 @@ class TrainSequence(ImageSequence):
         else:
             # images_batch = [self._augment_image(img) for img in x]
             images_batch = []
-            with Pool() as p:
+            with ThreadPool() as p:
                 for images in p.imap(self._augment_image, x):
                     images_batch.append(images)
             images_batch = [self._crop_image(img) for img in images_batch]
@@ -255,7 +255,7 @@ class ValSequence(ImageSequence):
         else:
             # images_batch = [self._augment_image(img) for img in x]
             images_batch = []
-            with Pool() as p:
+            with ThreadPool() as p:
                 for images in p.imap(self._augment_image, x):
                     images_batch.append(images)
             images_batch = [self._crop_image(img, center=True) for img in images_batch]
