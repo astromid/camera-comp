@@ -8,7 +8,7 @@ from keras.callbacks import TensorBoard
 from keras.optimizers import Adam, SGD
 from keras.losses import binary_crossentropy, categorical_crossentropy
 from keras.metrics import categorical_accuracy
-from utils import LoggerCallback, CycleLRCallback
+from utils import LoggerCallback, CycleReduceLROnPlateau
 from keras_tqdm import TQDMCallback
 
 if __name__ == '__main__':
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parser.add_argument('--f_epochs', type=int, default=1)
     parser.add_argument('--epochs', type=int)
     parser.add_argument('--batch', type=int)
-    parser.add_argument('--bal', type=int, default=0)
+    parser.add_argument('--weights', type=int, default=0)
     parser.add_argument('--aug', type=int, default=0)
     args = parser.parse_args()
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     BATCH_SIZE = args.batch
     TRAIN_PARAMS = {
         'batch_size': BATCH_SIZE,
-        'balance': args.bal,
+        'weights': args.weights,
         'augment': args.aug
     }
     os.makedirs(MODEL_DIR, exist_ok=True)
@@ -59,12 +59,18 @@ if __name__ == '__main__':
     model = models.resnet50()
     if F_EPOCHS != 0:
         # train with frozen resnet block
-        model.compile(
-            optimizer=Adam(),
-            loss=binary_crossentropy,
-            metrics=[categorical_accuracy]
-            # weighted_metrics=[categorical_accuracy]
-        )
+        if args.weights == 0:
+            model.compile(
+                optimizer=Adam(),
+                loss=binary_crossentropy,
+                metrics=[categorical_accuracy]
+            )
+        else:
+            model.compile(
+                optimizer=Adam(),
+                loss=binary_crossentropy,
+                weighted_metrics=[categorical_accuracy]
+            )
         hist_f = model.fit_generator(
             generator=train_seq,
             steps_per_epoch=len(train_seq),
@@ -78,12 +84,18 @@ if __name__ == '__main__':
         # defrost resnet block
         for layer in model.get_layer('resnet50').layers:
             layer.trainable = True
-        model.compile(
-            optimizer=Adam(),
-            loss=binary_crossentropy,
-            metrics=[categorical_accuracy]
-            # weighted_metrics=[categorical_accuracy]
-        )
+        if args.weights == 0:
+            model.compile(
+                optimizer=Adam(),
+                loss=binary_crossentropy,
+                metrics=[categorical_accuracy]
+            )
+        else:
+            model.compile(
+                optimizer=Adam(),
+                loss=binary_crossentropy,
+                weighted_metrics=[categorical_accuracy]
+            )
         hist = model.fit_generator(
             generator=train_seq,
             steps_per_epoch=len(train_seq),

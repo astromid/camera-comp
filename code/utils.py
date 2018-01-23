@@ -2,13 +2,14 @@ import os
 import inspect
 import cv2
 import numpy as np
+import keras.backend as K
 from glob import glob
 from keras.utils import Sequence
-from keras.callbacks import Callback
+from keras.callbacks import Callback, ReduceLROnPlateau
 from tqdm import tqdm
 from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
-from multiprocessing.pool import Pool, ThreadPool
+from multiprocessing.pool import ThreadPool
 from skimage.exposure import adjust_gamma
 from sklearn.model_selection import train_test_split
 
@@ -31,6 +32,7 @@ TEST_DIR = os.path.join(ROOT_DIR, 'data', 'test')
 ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
+AUG_WEIGHTS = {'unalt': 0.7, 'manip': 0.3}
 
 # change built-in print with tqdm_print
 old_print = print
@@ -63,10 +65,24 @@ class LoggerCallback(Callback):
         print(output)
 
 
-class CycleLRCallback(Callback):
+class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start_lr = K.get_value(self.model.optimizer.lr)
+        self.min_lr_counter = 0
+
+    def on_epoch_end(self, epoch, logs=None):
+        super().on_epoch_end(epoch, logs)
+        new_lr = K.get_value(self.model.optimizer.lr)
+        if new_lr == self.min_lr:
+            self.min_lr_counter += 1
+        if self.min_lr_counter >= 1.5 * self.patience:
+            K.set_value(self.model.optimizer.lr, self.start_lr)
+            if self.verbose > 0:
+                print('\nEpoch %05d: returning to starting learning rate %s.' % (epoch + 1, self.start_lr))
+            self.cooldown_counter = self.cooldown
+            self.wait = 0
 
 
 class ImageStorage:
@@ -169,8 +185,10 @@ class ImageSequence(Sequence):
     def _augment_image(args):
         image, center = args
         h, w, _ = image.shape
+        status = 'unalt'
         # default augmentations (only 1 from 8)
         if np.random.rand() < 0.5:
+            status = 'manip'
             flag = np.random.choice(8)
             if flag == 0:
                 aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
@@ -188,6 +206,7 @@ class ImageSequence(Sequence):
                     aug_image = ImageSequence._crop_image((image, side_len, center))
                     aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
                 else:
+                    status = 'unalt'
                     aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
             elif flag == 3:
                 side_len = np.ceil(CROP_SIDE / 0.8).astype('int')
@@ -195,6 +214,7 @@ class ImageSequence(Sequence):
                     aug_image = ImageSequence._crop_image((image, side_len, center))
                     aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
                 else:
+                    status = 'unalt'
                     aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
             elif flag == 4:
                 side_len = np.ceil(CROP_SIDE / 1.5).astype('int')
@@ -225,7 +245,7 @@ class ImageSequence(Sequence):
             assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
         except AssertionError:
             print('Assertion error in augment: ', aug_image.shape)
-        return aug_image
+        return aug_image, status
 
 
 class TrainSequence(ImageSequence):
@@ -234,7 +254,7 @@ class TrainSequence(ImageSequence):
         super().__init__(data, params)
         # shuffle before start
         self.on_epoch_end()
-        self.balance = params['balance']
+        self.weights = params['weights']
         self.len_ = len(self.data.images)
 
     def __getitem__(self, idx):
@@ -242,14 +262,17 @@ class TrainSequence(ImageSequence):
         y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
         images_batch = []
+        images_status = []
         with ThreadPool() as p:
             args = list(zip(x, [False] * len(x)))
             if self.augment == 0:
                 for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for images in p.imap(self._augment_image, args):
+                for results in p.imap(self._augment_image, args):
+                    images, status = results
                     images_batch.append(images)
+                    images_status.append(status)
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -257,10 +280,10 @@ class TrainSequence(ImageSequence):
             labels_batch.append(ohe)
         images_batch = np.array(images_batch)
         labels_batch = np.array(labels_batch)
-        if self.balance == 0:
+        if self.weights == 0:
             return images_batch, labels_batch
         else:
-            weights = compute_sample_weight('balanced', label_ids)
+            weights = compute_sample_weight(AUG_WEIGHTS, images_status)
             return images_batch, labels_batch, weights
 
     def on_epoch_end(self):
@@ -271,7 +294,7 @@ class ValSequence(ImageSequence):
 
     def __init__(self, data, params):
         super().__init__(data, params)
-        self.balance = params['balance']
+        self.weights = params['weights']
         self.len_ = len(self.data.val_images)
 
     def __getitem__(self, idx):
@@ -280,13 +303,16 @@ class ValSequence(ImageSequence):
         label_ids = [LABEL2ID[label] for label in y]
         args = list(zip(x, [True] * len(x)))
         images_batch = []
+        images_status = []
         with ThreadPool() as p:
             if self.augment == 0:
                 for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for images in p.imap(self._augment_image, args):
+                for results in p.imap(self._augment_image, args):
+                    images, status = results
                     images_batch.append(images)
+                    images_status.append(status)
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -294,10 +320,10 @@ class ValSequence(ImageSequence):
             labels_batch.append(ohe)
         images_batch = np.array(images_batch)
         labels_batch = np.array(labels_batch)
-        if self.balance == 0:
+        if self.weights == 0:
             return images_batch, labels_batch
         else:
-            weights = compute_sample_weight('balanced', label_ids)
+            weights = compute_sample_weight(AUG_WEIGHTS, images_status)
             return images_batch, labels_batch, weights
 
 
