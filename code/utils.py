@@ -214,7 +214,10 @@ class ImageSequence(Sequence):
         if np.random.rand() < 0.5:
             k_size = np.random.choice([3, 5])
             aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
-        assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
+        try:
+            assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
+        except AssertionError:
+            print(aug_image.shape)
         return aug_image
 
 
