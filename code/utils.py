@@ -184,14 +184,14 @@ class ImageSequence(Sequence):
                 aug_image = cv2.imdecode(aug_image, 1)
             elif flag == 2:
                 side_len = np.ceil(CROP_SIDE / 0.5).astype('int')
-                if side_len <= h and side_len <= w:
+                if side_len < h and side_len < w:
                     aug_image = ImageSequence._crop_image((image, side_len, center))
                     aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
                 else:
                     aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
             elif flag == 3:
                 side_len = np.ceil(CROP_SIDE / 0.8).astype('int')
-                if side_len <= h and side_len <= w:
+                if side_len < h and side_len < w:
                     aug_image = ImageSequence._crop_image((image, side_len, center))
                     aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
                 else:
