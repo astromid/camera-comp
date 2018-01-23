@@ -99,7 +99,7 @@ class ImageStorage:
     def load_test_images(self):
         files = [os.path.relpath(file, TEST_DIR) for file in
                  glob(os.path.join(TEST_DIR, '*'))]
-        with Pool() as p:
+        with ThreadPool() as p:
             total = len(files)
             with tqdm(desc='Loading test files', total=total) as pbar:
                 for results in p.imap_unordered(self._load_test_image, files):
@@ -213,15 +213,17 @@ class TrainSequence(ImageSequence):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
-        if self.augment == 0:
-            images_batch = [self._crop_image(img) for img in x]
-        else:
-            # images_batch = [self._augment_image(img) for img in x]
-            images_batch = []
-            with ThreadPool() as p:
-                for images in p.imap(self._augment_image, x):
+        aug_batch = []
+        images_batch = []
+        with ThreadPool() as p:
+            if self.augment == 0:
+                for images in p.imap(self._crop_image, x):
                     images_batch.append(images)
-            images_batch = [self._crop_image(img) for img in images_batch]
+            else:
+                for images in p.imap(self._augment_image, x):
+                    aug_batch.append(images)
+                for images in p.imap(self._crop_image, aug_batch):
+                    images_batch.append(images)
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -250,15 +252,17 @@ class ValSequence(ImageSequence):
         x = self.data.val_images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.data.val_labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
-        if self.augment == 0:
-            images_batch = [self._crop_image(img, center=True) for img in x]
-        else:
-            # images_batch = [self._augment_image(img) for img in x]
-            images_batch = []
-            with ThreadPool() as p:
-                for images in p.imap(self._augment_image, x):
+        aug_batch = []
+        images_batch = []
+        with ThreadPool() as p:
+            if self.augment == 0:
+                for images in p.imap(self._crop_image, x):
                     images_batch.append(images)
-            images_batch = [self._crop_image(img, center=True) for img in images_batch]
+            else:
+                for images in p.imap(self._augment_image, x):
+                    aug_batch.append(images)
+                for images in p.imap(self._crop_image, aug_batch):
+                    images_batch.append(images)
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -282,9 +286,12 @@ class TestSequence(ImageSequence):
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         # for TTA
-        if self.augment == 0:
-            images_batch = x
-        else:
-            images_batch = [self._augment_image(img) for img in x]
+        images_batch = []
+        with ThreadPool() as p:
+            if self.augment == 0:
+                images_batch = x
+            else:
+                for images in p.imap(self._augment_image, x):
+                    images_batch.append(images)
         images_batch = np.array(images_batch)
         return images_batch
