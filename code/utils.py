@@ -157,13 +157,18 @@ class ImageSequence(Sequence):
     def _crop_image(args):
         image, side_len, center = args
         h, w, _ = image.shape
+        try:
+            assert h >= side_len
+            assert w >= side_len
+        except AssertionError:
+            print('Assertion error in crop: ', h, w, side_len)
         if center is False:
             h_start = np.random.randint(0, h - side_len)
             w_start = np.random.randint(0, w - side_len)
         else:
             h_start = np.floor_divide(h - side_len, 2)
             w_start = np.floor_divide(w - side_len, 2)
-        return image[h_start:h_start + side_len, w_start:w_start + side_len]
+        return image[h_start:h_start + side_len, w_start:w_start + side_len].copy()
 
     @staticmethod
     def _augment_image(args):
@@ -176,32 +181,32 @@ class ImageSequence(Sequence):
                 enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
                 _, aug_image = cv2.imencode('.jpg', aug_image, enc_param)
                 aug_image = cv2.imdecode(aug_image, 1)
-            if flag == 1:
+            elif flag == 1:
                 aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
                 enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
                 _, aug_image = cv2.imencode('.jpg', aug_image, enc_param)
                 aug_image = cv2.imdecode(aug_image, 1)
-            if flag == 2:
+            elif flag == 2:
                 side_len = np.ceil(CROP_SIDE / 0.5).astype('int')
                 aug_image = ImageSequence._crop_image((image, side_len, center))
                 aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
-            if flag == 3:
+            elif flag == 3:
                 side_len = np.ceil(CROP_SIDE / 0.8).astype('int')
                 aug_image = ImageSequence._crop_image((image, side_len, center))
                 aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
-            if flag == 4:
+            elif flag == 4:
                 side_len = np.ceil(CROP_SIDE / 1.5).astype('int')
                 aug_image = ImageSequence._crop_image((image, side_len, center))
                 aug_image = cv2.resize(aug_image, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
                 aug_image = ImageSequence._crop_image((aug_image, CROP_SIDE, center))
-            if flag == 5:
+            elif flag == 5:
                 side_len = np.ceil(CROP_SIDE / 2.0).astype('int')
                 aug_image = ImageSequence._crop_image((image, side_len, center))
                 aug_image = cv2.resize(aug_image, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
-            if flag == 6:
+            elif flag == 6:
                 aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
                 aug_image = adjust_gamma(aug_image, 0.8)
-            if flag == 7:
+            else:
                 aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
                 aug_image = adjust_gamma(aug_image, 1.2)
         else:
@@ -217,7 +222,7 @@ class ImageSequence(Sequence):
         try:
             assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
         except AssertionError:
-            print(aug_image.shape)
+            print('Assertion error in augment: ', aug_image.shape)
         return aug_image
 
 
@@ -304,10 +309,10 @@ class TestSequence(ImageSequence):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         # for TTA
         images_batch = []
-        with ThreadPool() as p:
-            if self.augment == 0:
-                images_batch = x
-            else:
+        if self.augment == 0:
+            images_batch = x
+        else:
+            with ThreadPool() as p:
                 for images in p.imap(self._augment_image, x):
                     images_batch.append(images)
         images_batch = np.array(images_batch)
@@ -316,7 +321,7 @@ class TestSequence(ImageSequence):
     @staticmethod
     def _augment_image(image, center=False):
         # only additional augmentations for TTA
-        aug_image = image
+        aug_image = image.copy()
         if np.random.rand() < 0.5:
             n_rotate = np.random.choice([1, 2, 3])
             for _ in range(n_rotate):
@@ -324,6 +329,9 @@ class TestSequence(ImageSequence):
         if np.random.rand() < 0.5:
             k_size = np.random.choice([3, 5])
             aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
-        assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
+        try:
+            assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
+        except AssertionError:
+            print('Assertion error in augment: ', aug_image.shape)
         return aug_image
 
