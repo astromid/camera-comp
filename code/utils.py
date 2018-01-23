@@ -178,13 +178,13 @@ class ImageSequence(Sequence):
                 _, image = cv2.imencode('.jpg', image, encode_param)
                 image = cv2.imdecode(image, 1)
             if flag == 2:
-                image = cv2.resize(image, dsize=0, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
+                image = cv2.resize(image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
             if flag == 3:
-                image = cv2.resize(image, dsize=0, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
+                image = cv2.resize(image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
             if flag == 4:
-                image = cv2.resize(image, dsize=0, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
+                image = cv2.resize(image, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
             if flag == 5:
-                image = cv2.resize(image, dsize=0, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+                image = cv2.resize(image, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
             if flag == 6:
                 image = adjust_gamma(image, 0.8)
             if flag == 7:
