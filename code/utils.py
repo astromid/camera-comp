@@ -216,7 +216,11 @@ class TrainSequence(ImageSequence):
         if self.augment == 0:
             images_batch = [self._crop_image(img) for img in x]
         else:
-            images_batch = [self._augment_image(img) for img in x]
+            # images_batch = [self._augment_image(img) for img in x]
+            images_batch = []
+            with Pool() as p:
+                for images in p.imap(self._augment_image, x):
+                    images_batch.append(images)
             images_batch = [self._crop_image(img) for img in images_batch]
         labels_batch = []
         for id_ in label_ids:
@@ -243,13 +247,17 @@ class ValSequence(ImageSequence):
         self.len_ = len(self.data.val_images)
 
     def __getitem__(self, idx):
-        x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
-        y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        x = self.data.val_images[idx * self.batch_size:(idx + 1) * self.batch_size]
+        y = self.data.val_labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
         if self.augment == 0:
             images_batch = [self._crop_image(img, center=True) for img in x]
         else:
-            images_batch = [self._augment_image(img) for img in x]
+            # images_batch = [self._augment_image(img) for img in x]
+            images_batch = []
+            with Pool() as p:
+                for images in p.imap(self._augment_image, x):
+                    images_batch.append(images)
             images_batch = [self._crop_image(img, center=True) for img in images_batch]
         labels_batch = []
         for id_ in label_ids:
