@@ -195,7 +195,7 @@ class ImageSequence(Sequence):
             for _ in range(n_rotate):
                 image = np.rot90(image)
         if np.random.rand() < 0.5:
-            k_size = np.random.choice([2, 3, 4, 5])
+            k_size = np.random.choice([3, 5])
             image = cv2.GaussianBlur(image, (k_size, k_size), 0)
         return image
 
