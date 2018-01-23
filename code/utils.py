@@ -157,11 +157,6 @@ class ImageSequence(Sequence):
     def _crop_image(args):
         image, side_len, center = args
         h, w, _ = image.shape
-        try:
-            assert h >= side_len
-            assert w >= side_len
-        except AssertionError:
-            print('Assertion error in crop: ', h, w, side_len)
         if center is False:
             h_start = np.random.randint(0, h - side_len)
             w_start = np.random.randint(0, w - side_len)
@@ -173,6 +168,7 @@ class ImageSequence(Sequence):
     @staticmethod
     def _augment_image(args):
         image, center = args
+        h, w, _ = image.shape
         # default augmentations (only 1 from 8)
         if np.random.rand() < 0.5:
             flag = np.random.choice(8)
@@ -188,12 +184,18 @@ class ImageSequence(Sequence):
                 aug_image = cv2.imdecode(aug_image, 1)
             elif flag == 2:
                 side_len = np.ceil(CROP_SIDE / 0.5).astype('int')
-                aug_image = ImageSequence._crop_image((image, side_len, center))
-                aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
+                if side_len <= h and side_len <= w:
+                    aug_image = ImageSequence._crop_image((image, side_len, center))
+                    aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
+                else:
+                    aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
             elif flag == 3:
                 side_len = np.ceil(CROP_SIDE / 0.8).astype('int')
-                aug_image = ImageSequence._crop_image((image, side_len, center))
-                aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
+                if side_len <= h and side_len <= w:
+                    aug_image = ImageSequence._crop_image((image, side_len, center))
+                    aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
+                else:
+                    aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
             elif flag == 4:
                 side_len = np.ceil(CROP_SIDE / 1.5).astype('int')
                 aug_image = ImageSequence._crop_image((image, side_len, center))
