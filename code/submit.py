@@ -11,18 +11,18 @@ if __name__ == '__main__':
     parser.add_argument('--name')
     parser.add_argument('--best', type=int, default=0)
     parser.add_argument('--batch', type=int)
-    parser.add_argument('--aug', type=int, default=0)
+    parser.add_argument('--tta', type=int, default=0)
     args = parser.parse_args()
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
     SUB_DIR = os.path.join(utils.ROOT_DIR, 'subs')
     SUB_PROB_DIR = os.path.join(SUB_DIR, 'probs')
-    N_AUG = args.aug
+    N_TTA = args.tta
 
-    if N_AUG == 0:
+    if N_TTA == 0:
         sub_end = '.csv'
     else:
-        sub_end = f'-tta{N_AUG}.csv'
+        sub_end = f'-tta{N_TTA}.csv'
 
     if args.best == 0:
         MODEL_PATH = os.path.join(MODEL_DIR, 'model.h5')
@@ -47,9 +47,9 @@ if __name__ == '__main__':
         steps=len(test_seq),
         verbose=1
     )
-    if N_AUG != 0:
+    if N_TTA != 0:
         test_seq.augment = 1
-        for _ in range(N_AUG):
+        for _ in range(N_TTA):
             aug_probs = model.predict_generator(
                 generator=test_seq,
                 steps=len(test_seq),

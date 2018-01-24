@@ -11,6 +11,7 @@ from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
 from multiprocessing.pool import ThreadPool
 from skimage.exposure import adjust_gamma
+from numba import jit
 
 LABELS = [
     'HTC-1-M7',
@@ -31,8 +32,6 @@ TEST_DIR = os.path.join(ROOT_DIR, 'data', 'test')
 ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
-# unalt <-> 0, manip <-> 1
-AUG_WEIGHTS = {0: 0.7, 1: 0.3}
 
 # change built-in print with tqdm_print
 old_print = print
@@ -98,10 +97,10 @@ class ImageStorage:
         with ThreadPool() as p:
             total = len(files)
             with tqdm(desc='Loading train files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, files):
-                    images, labels = results
-                    self.images.append(images)
-                    self.labels.append(labels)
+                for result in p.imap_unordered(self._load_train_image, files):
+                    image, label = result
+                    self.images.append(image)
+                    self.labels.append(label)
                     pbar.update()
 
     def load_test_images(self):
@@ -110,10 +109,10 @@ class ImageStorage:
         with ThreadPool() as p:
             total = len(files)
             with tqdm(desc='Loading test files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_test_image, files):
-                    images, filenames = results
-                    self.images.append(images)
-                    self.files.append(filenames)
+                for result in p.imap_unordered(self._load_test_image, files):
+                    image, filename = result
+                    self.images.append(image)
+                    self.files.append(filename)
                     pbar.update()
 
     def shuffle_train_data(self):
@@ -141,10 +140,10 @@ class ImageStorage:
 class ImageSequence(Sequence):
 
     def __init__(self, data, params):
+        self.data = data
+        self.len_ = len(self.data.images)
         self.batch_size = params['batch_size']
         self.augment = params['augment']
-        self.data = data
-        self.len_ = 0
 
     def __len__(self):
         return np.ceil(self.len_ / self.batch_size).astype('int')
@@ -154,6 +153,7 @@ class ImageSequence(Sequence):
         raise NotImplementedError
 
     @staticmethod
+    @jit
     def _crop_image(args):
         image, side_len, center = args
         h, w, _ = image.shape
@@ -166,58 +166,36 @@ class ImageSequence(Sequence):
         return image[h_start:h_start + side_len, w_start:w_start + side_len].copy()
 
     @staticmethod
-    def _augment_image(args):
+    @jit
+    def _prepare_image(args):
         image, center = args
-        h, w, _ = image.shape
-        status = 0
-        # default augmentations (only 1 from 8)
-        if np.random.rand() < 0.5:
-            status = 1
-            flag = np.random.choice(8)
-            if flag == 0:
-                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-                enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
-                _, aug_image = cv2.imencode('.jpg', aug_image, enc_param)
-                aug_image = cv2.imdecode(aug_image, 1)
-            elif flag == 1:
-                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-                enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                _, aug_image = cv2.imencode('.jpg', aug_image, enc_param)
-                aug_image = cv2.imdecode(aug_image, 1)
-            elif flag == 2:
-                side_len = np.ceil(CROP_SIDE / 0.5).astype('int')
-                if side_len < h and side_len < w:
-                    aug_image = ImageSequence._crop_image((image, side_len, center))
-                    aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
-                else:
-                    status = 0
-                    aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-            elif flag == 3:
-                side_len = np.ceil(CROP_SIDE / 0.8).astype('int')
-                if side_len < h and side_len < w:
-                    aug_image = ImageSequence._crop_image((image, side_len, center))
-                    aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
-                else:
-                    status = 0
-                    aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-            elif flag == 4:
-                side_len = np.ceil(CROP_SIDE / 1.5).astype('int')
-                aug_image = ImageSequence._crop_image((image, side_len, center))
-                aug_image = cv2.resize(aug_image, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
-                aug_image = ImageSequence._crop_image((aug_image, CROP_SIDE, center))
-            elif flag == 5:
-                side_len = np.ceil(CROP_SIDE / 2.0).astype('int')
-                aug_image = ImageSequence._crop_image((image, side_len, center))
-                aug_image = cv2.resize(aug_image, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
-            elif flag == 6:
-                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-                aug_image = adjust_gamma(aug_image, 0.8)
+        if np.random.rand() < 0.3:
+            manip = np.random.choice([0, 0, 1, 1, 1, 1, 2, 2])
+            if manip == 0:
+                rate = np.random.choice([70, 90])
+                manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
+                enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), rate]
+                _, manip_image = cv2.imencode('.jpg', manip_image, enc_param)
+                manip_image = cv2.imdecode(manip_image, 1)
+            elif manip == 1:
+                scale = np.random.choice([0.5, 0.8, 1.5, 2.0])
+                side_len = np.ceil(CROP_SIDE / scale).astype('int')
+                manip_image = ImageSequence._crop_image((image, side_len, center))
+                manip_image = cv2.resize(manip_image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
             else:
-                aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-                aug_image = adjust_gamma(aug_image, 1.2)
+                gamma = np.random.choice([0.8, 1.2])
+                manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
+                manip_image = adjust_gamma(manip_image, gamma)
+            if manip_image.shape != (CROP_SIDE, CROP_SIDE, 3):
+                manip_image = ImageSequence._crop_image((manip_image, CROP_SIDE, center))
         else:
-            aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-        # additional augmentations
+            manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
+        return manip_image
+
+    @staticmethod
+    @jit
+    def _augment_image(image):
+        aug_image = image
         if np.random.rand() < 0.5:
             n_rotate = np.random.choice([1, 2, 3])
             for _ in range(n_rotate):
@@ -225,39 +203,31 @@ class ImageSequence(Sequence):
         if np.random.rand() < 0.5:
             k_size = np.random.choice([3, 5])
             aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
-        try:
-            assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
-        except AssertionError:
-            print('Assertion error in augment: ', aug_image.shape)
-            raise AssertionError
-        return aug_image, status
+        return aug_image
 
 
 class TrainSequence(ImageSequence):
 
     def __init__(self, data, params):
         super().__init__(data, params)
+        self.balance = params['balance']
         # shuffle before start
         self.on_epoch_end()
-        self.weights = params['weights']
-        self.len_ = len(self.data.images)
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
         images_batch = []
-        images_status = []
         with ThreadPool() as p:
             args = list(zip(x, [False] * len(x)))
-            if self.augment == 0:
-                for images in p.imap(self._crop_image, args):
-                    images_batch.append(images)
-            else:
-                for results in p.imap(self._augment_image, args):
-                    images, status = results
-                    images_batch.append(images)
-                    images_status.append(status)
+            for image in p.imap(self._prepare_image, args):
+                images_batch.append(image)
+            if self.augment != 0:
+                augmented_batch = []
+                for image in p.imap(self._augment_image, images_batch):
+                    augmented_batch.append(image)
+                images_batch = augmented_batch
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -265,10 +235,10 @@ class TrainSequence(ImageSequence):
             labels_batch.append(ohe)
         images_batch = np.array(images_batch).astype(np.float32)
         labels_batch = np.array(labels_batch)
-        if self.weights == 0:
+        if self.balance == 0:
             return images_batch, labels_batch
         else:
-            weights = compute_sample_weight(AUG_WEIGHTS, images_status)
+            weights = compute_sample_weight('balanced', label_ids)
             return images_batch, labels_batch, weights
 
     def on_epoch_end(self):
@@ -279,25 +249,22 @@ class ValSequence(ImageSequence):
 
     def __init__(self, data, params):
         super().__init__(data, params)
-        self.weights = params['weights']
-        self.len_ = len(self.data.images)
+        self.balance = params['balance']
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
-        args = list(zip(x, [True] * len(x)))
         images_batch = []
-        images_status = []
         with ThreadPool() as p:
-            if self.augment == 0:
-                for images in p.imap(self._crop_image, args):
-                    images_batch.append(images)
-            else:
-                for results in p.imap(self._augment_image, args):
-                    images, status = results
-                    images_batch.append(images)
-                    images_status.append(status)
+            args = list(zip(x, [True] * len(x)))
+            for image in p.imap(self._prepare_image, args):
+                images_batch.append(image)
+            if self.augment != 0:
+                augmented_batch = []
+                for image in p.imap(self._augment_image, images_batch):
+                    augmented_batch.append(image)
+                images_batch = augmented_batch
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -305,10 +272,10 @@ class ValSequence(ImageSequence):
             labels_batch.append(ohe)
         images_batch = np.array(images_batch).astype(np.float32)
         labels_batch = np.array(labels_batch)
-        if self.weights == 0:
+        if self.balance == 0:
             return images_batch, labels_batch
         else:
-            weights = compute_sample_weight(AUG_WEIGHTS, images_status)
+            weights = compute_sample_weight('balanced', label_ids)
             return images_batch, labels_batch, weights
 
 
@@ -316,36 +283,17 @@ class TestSequence(ImageSequence):
 
     def __init__(self, data, params):
         super().__init__(data, params)
-        self.len_ = len(self.data.images)
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         # for TTA
-        images_batch = []
         if self.augment == 0:
             images_batch = x
         else:
+            images_batch = []
             with ThreadPool() as p:
-                for images in p.imap(self._augment_image, x):
-                    images_batch.append(images)
+                for image in p.imap(self._augment_image, x):
+                    images_batch.append(image)
         images_batch = np.array(images_batch).astype(np.float32)
         return images_batch
-
-    @staticmethod
-    def _augment_image(image, center=False):
-        # only additional augmentations for TTA
-        aug_image = image.copy()
-        if np.random.rand() < 0.5:
-            n_rotate = np.random.choice([1, 2, 3])
-            for _ in range(n_rotate):
-                aug_image = np.rot90(aug_image)
-        if np.random.rand() < 0.5:
-            k_size = np.random.choice([3, 5])
-            aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
-        try:
-            assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
-        except AssertionError:
-            print('Assertion error in augment: ', aug_image.shape)
-            raise AssertionError
-        return aug_image
 
