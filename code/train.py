@@ -67,7 +67,7 @@ if __name__ == '__main__':
     if F_EPOCHS != 0:
         # train with frozen pretrained block
         model.compile(
-            optimizer=Adam(lr=1e-2),
+            optimizer=Adam(),
             loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         for layer in model.get_layer('resnet50').layers:
             layer.trainable = True
         model.compile(
-            optimizer=Adam(lr=1e-2),
+            optimizer=Adam(),
             loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
