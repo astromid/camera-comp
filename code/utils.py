@@ -82,7 +82,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.min_lr_counter += 1
         if self.min_lr_counter >= 2 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
-            self.patience = int(self.patience / 2)
+            self.patience = max(int(self.patience / 1.5), 2)
             if self.verbose > 0:
                 print('\nEpoch %05d: Cycle returning to initial learning rate %s.' % (epoch + 1, self.start_lr))
             self.cooldown_counter = self.cooldown
