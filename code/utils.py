@@ -32,7 +32,8 @@ TEST_DIR = os.path.join(ROOT_DIR, 'data', 'test')
 ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
-AUG_WEIGHTS = {'unalt': 0.7, 'manip': 0.3}
+# unalt <-> 0, manip <-> 1
+AUG_WEIGHTS = {0: 0.7, 1: 0.3}
 
 # change built-in print with tqdm_print
 old_print = print
@@ -99,14 +100,14 @@ class ImageStorage:
         with ThreadPool() as p:
             total = len(train_files)
             with tqdm(desc='Loading train files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, train_files):
+                for results in p.imap_unordered(self._load_train_image, train_files, chunksize=2):
                     images, labels = results
                     self.images.append(images)
                     self.labels.append(labels)
                     pbar.update()
             total = len(val_files)
             with tqdm(desc='Loading validation files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, val_files):
+                for results in p.imap_unordered(self._load_train_image, val_files, chunksize=2):
                     images, labels = results
                     self.val_images.append(images)
                     self.val_labels.append(labels)
@@ -185,10 +186,10 @@ class ImageSequence(Sequence):
     def _augment_image(args):
         image, center = args
         h, w, _ = image.shape
-        status = 'unalt'
+        status = 0
         # default augmentations (only 1 from 8)
         if np.random.rand() < 0.5:
-            status = 'manip'
+            status = 1
             flag = np.random.choice(8)
             if flag == 0:
                 aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
@@ -206,7 +207,7 @@ class ImageSequence(Sequence):
                     aug_image = ImageSequence._crop_image((image, side_len, center))
                     aug_image = cv2.resize(aug_image, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
                 else:
-                    status = 'unalt'
+                    status = 0
                     aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
             elif flag == 3:
                 side_len = np.ceil(CROP_SIDE / 0.8).astype('int')
@@ -214,7 +215,7 @@ class ImageSequence(Sequence):
                     aug_image = ImageSequence._crop_image((image, side_len, center))
                     aug_image = cv2.resize(aug_image, None, fx=0.8, fy=0.8, interpolation=cv2.INTER_CUBIC)
                 else:
-                    status = 'unalt'
+                    status = 0
                     aug_image = ImageSequence._crop_image((image, CROP_SIDE, center))
             elif flag == 4:
                 side_len = np.ceil(CROP_SIDE / 1.5).astype('int')
@@ -245,6 +246,7 @@ class ImageSequence(Sequence):
             assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
         except AssertionError:
             print('Assertion error in augment: ', aug_image.shape)
+            raise AssertionError
         return aug_image, status
 
 
@@ -269,7 +271,7 @@ class TrainSequence(ImageSequence):
                 for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for results in p.imap(self._augment_image, args):
+                for results in p.imap(self._augment_image, args, chunksize=2):
                     images, status = results
                     images_batch.append(images)
                     images_status.append(status)
@@ -309,7 +311,7 @@ class ValSequence(ImageSequence):
                 for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for results in p.imap(self._augment_image, args):
+                for results in p.imap(self._augment_image, args, chunksize=2):
                     images, status = results
                     images_batch.append(images)
                     images_status.append(status)
@@ -361,5 +363,6 @@ class TestSequence(ImageSequence):
             assert aug_image.shape == (CROP_SIDE, CROP_SIDE, 3)
         except AssertionError:
             print('Assertion error in augment: ', aug_image.shape)
+            raise AssertionError
         return aug_image
 
