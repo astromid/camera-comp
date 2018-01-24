@@ -58,7 +58,7 @@ if __name__ == '__main__':
     tqdm_cb = TQDMCallback(leave_inner=False)
     model = models.resnet50()
     if F_EPOCHS != 0:
-        # train with frozen resnet block
+        # train with frozen pretrained block
         model.compile(
             optimizer=Adam(),
             loss=binary_crossentropy,
@@ -74,7 +74,7 @@ if __name__ == '__main__':
             validation_steps=len(val_seq)
         )
     if EPOCHS > F_EPOCHS:
-        # defrost resnet block
+        # defrost pretrained block
         for layer in model.get_layer('resnet50').layers:
             layer.trainable = True
         model.compile(
