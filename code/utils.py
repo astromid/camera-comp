@@ -33,7 +33,7 @@ ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
 # unalt <-> 0, manip <-> 1
-AUG_WEIGHTS = {0: 0.7, 1: 0.3}
+AUG_WEIGHTS = {0: 7, 1: 3}
 
 # change built-in print with tqdm_print
 old_print = print
@@ -100,14 +100,14 @@ class ImageStorage:
         with ThreadPool() as p:
             total = len(train_files)
             with tqdm(desc='Loading train files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, train_files, chunksize=2):
+                for results in p.imap_unordered(self._load_train_image, train_files):
                     images, labels = results
                     self.images.append(images)
                     self.labels.append(labels)
                     pbar.update()
             total = len(val_files)
             with tqdm(desc='Loading validation files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, val_files, chunksize=2):
+                for results in p.imap_unordered(self._load_train_image, val_files):
                     images, labels = results
                     self.val_images.append(images)
                     self.val_labels.append(labels)
@@ -271,7 +271,7 @@ class TrainSequence(ImageSequence):
                 for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for results in p.imap(self._augment_image, args, chunksize=2):
+                for results in p.imap(self._augment_image, args):
                     images, status = results
                     images_batch.append(images)
                     images_status.append(status)
@@ -311,7 +311,7 @@ class ValSequence(ImageSequence):
                 for images in p.imap(self._crop_image, args):
                     images_batch.append(images)
             else:
-                for results in p.imap(self._augment_image, args, chunksize=2):
+                for results in p.imap(self._augment_image, args):
                     images, status = results
                     images_batch.append(images)
                     images_status.append(status)
