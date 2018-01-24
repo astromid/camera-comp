@@ -129,13 +129,13 @@ class ImageStorage:
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        return image.astype(np.float32), label
+        return image, label
 
     @staticmethod
     def _load_test_image(file):
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TEST_DIR, filename))
-        return image.astype(np.float32), filename
+        return image, filename
 
 
 class ImageSequence(Sequence):
@@ -263,7 +263,7 @@ class TrainSequence(ImageSequence):
             ohe = np.zeros(N_CLASS)
             ohe[id_] = 1
             labels_batch.append(ohe)
-        images_batch = np.array(images_batch)
+        images_batch = np.array(images_batch).astype(np.float32)
         labels_batch = np.array(labels_batch)
         if self.weights == 0:
             return images_batch, labels_batch
@@ -303,7 +303,7 @@ class ValSequence(ImageSequence):
             ohe = np.zeros(N_CLASS)
             ohe[id_] = 1
             labels_batch.append(ohe)
-        images_batch = np.array(images_batch)
+        images_batch = np.array(images_batch).astype(np.float32)
         labels_batch = np.array(labels_batch)
         if self.weights == 0:
             return images_batch, labels_batch
@@ -328,7 +328,7 @@ class TestSequence(ImageSequence):
             with ThreadPool() as p:
                 for images in p.imap(self._augment_image, x):
                     images_batch.append(images)
-        images_batch = np.array(images_batch)
+        images_batch = np.array(images_batch).astype(np.float32)
         return images_batch
 
     @staticmethod
