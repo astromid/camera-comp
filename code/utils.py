@@ -157,6 +157,7 @@ class ImageSequence(Sequence):
         raise NotImplementedError
 
     @staticmethod
+    @jit
     def _crop_image(args):
         image, side_len, center = args
         h, w, _ = image.shape
@@ -169,6 +170,7 @@ class ImageSequence(Sequence):
         return image[h_start:h_start + side_len, w_start:w_start + side_len].copy()
 
     @staticmethod
+    @jit
     def _prepare_image(args):
         image, center = args
         if np.random.rand() < 0.3:
@@ -176,7 +178,7 @@ class ImageSequence(Sequence):
             if manip == 0:
                 rate = np.random.choice([70, 90])
                 manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-                enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), rate]
+                enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), int(rate)]
                 _, manip_image = cv2.imencode('.jpg', manip_image, enc_param)
                 manip_image = cv2.imdecode(manip_image, 1)
             elif manip == 1:
@@ -195,6 +197,7 @@ class ImageSequence(Sequence):
         return manip_image
 
     @staticmethod
+    @jit
     def _augment_image(image):
         aug_image = image
         if np.random.rand() < 0.5:
