@@ -33,7 +33,7 @@ if __name__ == '__main__':
     }
     os.makedirs(MODEL_DIR, exist_ok=True)
     data = ImageStorage()
-    data.load_train_val_images(rate=0.2)
+    data.load_train_images()
 
     train_seq = TrainSequence(data, TRAIN_PARAMS)
     val_seq = ValSequence(data, TRAIN_PARAMS)
@@ -104,6 +104,7 @@ if __name__ == '__main__':
             callbacks=[check_cb, reduce_cb, tb_cb, log_cb, tqdm_cb],
             validation_data=val_seq,
             validation_steps=len(val_seq),
+            max_queue_size=25,
             initial_epoch=F_EPOCHS
         )
     model.save(os.path.join(MODEL_DIR, 'model.h5'))

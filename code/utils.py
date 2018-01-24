@@ -11,7 +11,6 @@ from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
 from multiprocessing.pool import ThreadPool
 from skimage.exposure import adjust_gamma
-from sklearn.model_selection import train_test_split
 
 LABELS = [
     'HTC-1-M7',
@@ -33,7 +32,7 @@ ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
 # unalt <-> 0, manip <-> 1
-AUG_WEIGHTS = {0: 1, 1: 3/7}
+AUG_WEIGHTS = {0: 0.7, 1: 0.3}
 
 # change built-in print with tqdm_print
 old_print = print
@@ -81,7 +80,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
         if self.min_lr_counter >= 1.5 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
             if self.verbose > 0:
-                print('\nEpoch %05d: returning to starting learning rate %s.' % (epoch + 1, self.start_lr))
+                print('\nEpoch %05d: returning to start learning rate %s.' % (epoch + 1, self.start_lr))
             self.cooldown_counter = self.cooldown
             self.wait = 0
 
@@ -91,26 +90,18 @@ class ImageStorage:
     def __init__(self):
         self.images = []
         self.labels = []
-        self.val_images = []
-        self.val_labels = []
         self.files = []
 
-    def load_train_val_images(self, rate):
-        train_files, val_files = self._list_train_val_files(rate)
+    def load_train_images(self):
+        files = [os.path.relpath(file, TRAIN_DIR) for file in
+                 glob(os.path.join(TRAIN_DIR, '*', '*'))]
         with ThreadPool() as p:
-            total = len(train_files)
+            total = len(files)
             with tqdm(desc='Loading train files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, train_files):
+                for results in p.imap_unordered(self._load_train_image, files):
                     images, labels = results
                     self.images.append(images)
                     self.labels.append(labels)
-                    pbar.update()
-            total = len(val_files)
-            with tqdm(desc='Loading validation files', total=total) as pbar:
-                for results in p.imap_unordered(self._load_train_image, val_files):
-                    images, labels = results
-                    self.val_images.append(images)
-                    self.val_labels.append(labels)
                     pbar.update()
 
     def load_test_images(self):
@@ -138,21 +129,13 @@ class ImageStorage:
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        return image.astype(np.uint8), label
+        return image.astype(np.float32), label
 
     @staticmethod
     def _load_test_image(file):
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TEST_DIR, filename))
-        return image.astype(np.uint8), filename
-
-    @staticmethod
-    def _list_train_val_files(rate):
-        files = [os.path.relpath(file, TRAIN_DIR) for file in
-                 glob(os.path.join(TRAIN_DIR, '*', '*'))]
-        labels = [os.path.dirname(file) for file in files]
-        train_files, val_files = train_test_split(files, test_size=rate, stratify=labels)
-        return train_files, val_files
+        return image.astype(np.float32), filename
 
 
 class ImageSequence(Sequence):
@@ -297,11 +280,11 @@ class ValSequence(ImageSequence):
     def __init__(self, data, params):
         super().__init__(data, params)
         self.weights = params['weights']
-        self.len_ = len(self.data.val_images)
+        self.len_ = len(self.data.images)
 
     def __getitem__(self, idx):
-        x = self.data.val_images[idx * self.batch_size:(idx + 1) * self.batch_size]
-        y = self.data.val_labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
+        y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
         args = list(zip(x, [True] * len(x)))
         images_batch = []
