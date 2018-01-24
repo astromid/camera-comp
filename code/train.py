@@ -46,12 +46,19 @@ if __name__ == '__main__':
     )
     reduce_cb = ReduceLROnPlateau(
         monitor='val_loss',
-        factor=0.3,
+        factor=0.1,
         patience=5,
         verbose=1,
-        # epsilon=0.001,
         cooldown=3,
-        min_lr=1e-6
+        min_lr=1e-7
+    )
+    cycle_cb = CycleReduceLROnPlateau(
+        monitor='val_loss',
+        factor=0.1,
+        patience=5,
+        verbose=1,
+        cooldown=3,
+        min_lr=1e-7
     )
     tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()
@@ -60,7 +67,7 @@ if __name__ == '__main__':
     if F_EPOCHS != 0:
         # train with frozen pretrained block
         model.compile(
-            optimizer=Adam(),
+            optimizer=Adam(lr=1e-2),
             loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
@@ -78,7 +85,7 @@ if __name__ == '__main__':
         for layer in model.get_layer('resnet50').layers:
             layer.trainable = True
         model.compile(
-            optimizer=Adam(),
+            optimizer=Adam(lr=1e-2),
             loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
@@ -87,7 +94,7 @@ if __name__ == '__main__':
             steps_per_epoch=len(train_seq),
             epochs=EPOCHS,
             verbose=0,
-            callbacks=[check_cb, reduce_cb, tb_cb, log_cb, tqdm_cb],
+            callbacks=[check_cb, cycle_cb, tb_cb, log_cb, tqdm_cb],
             validation_data=val_seq,
             validation_steps=len(val_seq),
             max_queue_size=25,
