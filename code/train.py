@@ -47,18 +47,18 @@ if __name__ == '__main__':
     reduce_cb = ReduceLROnPlateau(
         monitor='val_loss',
         factor=0.1,
-        patience=5,
+        patience=6,
         verbose=1,
         cooldown=3,
-        min_lr=1e-7
+        min_lr=1e-6
     )
     cycle_cb = CycleReduceLROnPlateau(
         monitor='val_loss',
         factor=0.1,
-        patience=5,
+        patience=6,
         verbose=1,
         cooldown=3,
-        min_lr=1e-7
+        min_lr=1e-6
     )
     tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()

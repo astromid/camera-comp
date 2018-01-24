@@ -73,17 +73,18 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
     def on_train_begin(self, logs=None):
         super().on_train_begin(logs)
-        self.start_lr = K.get_value(self.model.optimizer.lr)
+        self.start_lr = float(K.get_value(self.model.optimizer.lr))
 
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
-        new_lr = K.get_value(self.model.optimizer.lr)
-        if new_lr == self.min_lr:
+        lr = float(K.get_value(self.model.optimizer.lr))
+        if lr == self.min_lr:
             self.min_lr_counter += 1
-        if self.min_lr_counter >= 1.5 * self.patience:
+        if self.min_lr_counter >= 2 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
+            self.patience = int(self.patience / 2)
             if self.verbose > 0:
-                print('\nEpoch %05d: returning to start learning rate %s.' % (epoch + 1, self.start_lr))
+                print('\nEpoch %05d: Cycle returning to initial learning rate %s.' % (epoch + 1, self.start_lr))
             self.cooldown_counter = self.cooldown
             self.wait = 0
 

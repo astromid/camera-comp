@@ -55,7 +55,8 @@ if __name__ == '__main__':
                 steps=len(test_seq),
                 verbose=1
             )
-            probs += aug_probs
+            probs *= aug_probs
+    probs = probs ** (1 / (N_TTA + 1))
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)
     labels = [utils.ID2LABEL[id_] for id_ in ids]
