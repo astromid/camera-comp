@@ -157,7 +157,6 @@ class ImageSequence(Sequence):
         raise NotImplementedError
 
     @staticmethod
-    @jit
     def _crop_image(args):
         image, side_len, center = args
         h, w, _ = image.shape
@@ -196,7 +195,6 @@ class ImageSequence(Sequence):
         return manip_image
 
     @staticmethod
-    @jit
     def _augment_image(image):
         aug_image = image
         if np.random.rand() < 0.5:
