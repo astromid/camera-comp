@@ -33,7 +33,7 @@ ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
 # unalt <-> 0, manip <-> 1
-AUG_WEIGHTS = {0: 7, 1: 3}
+AUG_WEIGHTS = {0: 1, 1: 3/7}
 
 # change built-in print with tqdm_print
 old_print = print
