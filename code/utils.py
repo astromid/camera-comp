@@ -68,8 +68,12 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.start_lr = K.get_value(self.model.optimizer.lr)
+        self.start_lr = None
         self.min_lr_counter = 0
+
+    def on_train_begin(self, logs=None):
+        super().on_train_begin(logs)
+        self.start_lr = K.get_value(self.model.optimizer.lr)
 
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
