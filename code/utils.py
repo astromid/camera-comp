@@ -206,9 +206,9 @@ class ImageSequence(Sequence):
     @jit
     def _augment_image(image):
         aug_image = image
-        n_rotate = np.random.choice([0, 1, 2, 3])
-        for _ in range(n_rotate):
-            aug_image = np.rot90(aug_image)
+        if np.random.rand() < 0.66:
+            axis_ = np.random.randint(0, 2)
+            aug_image = np.flip(aug_image, axis_)
         if np.random.rand() < 0.66:
             k_size = np.random.choice([3, 5])
             aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
