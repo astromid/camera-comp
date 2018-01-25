@@ -5,8 +5,8 @@ import utils
 from utils import ImageStorage, TrainSequence, ValSequence
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from keras.callbacks import TensorBoard
-from keras.optimizers import Adam, SGD
-from keras.losses import binary_crossentropy, sparse_categorical_crossentropy
+from keras.optimizers import Adam
+from keras.losses import binary_crossentropy
 from keras.metrics import categorical_accuracy
 from utils import LoggerCallback, CycleReduceLROnPlateau
 from keras_tqdm import TQDMCallback
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         # train with frozen pretrained block
         model.compile(
             optimizer=Adam(),
-            loss=sparse_categorical_crossentropy,
+            loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
         hist_f = model.fit_generator(
@@ -86,7 +86,7 @@ if __name__ == '__main__':
             layer.trainable = True
         model.compile(
             optimizer=Adam(),
-            loss=sparse_categorical_crossentropy,
+            loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
         hist = model.fit_generator(

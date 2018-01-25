@@ -248,8 +248,7 @@ class TrainSequence(ImageSequence):
         images_batch = np.array(images_batch).astype(np.float32)
         manip_flags = np.array(manip_flags)
         batch = [images_batch, manip_flags]
-        #labels_batch = np.array(labels_batch)
-        labels_batch = np.array(label_ids)
+        labels_batch = np.array(labels_batch)
         if self.balance == 0:
             return batch, labels_batch
         else:
@@ -291,8 +290,7 @@ class ValSequence(ImageSequence):
         images_batch = np.array(images_batch).astype(np.float32)
         manip_flags = np.array(manip_flags)
         batch = [images_batch, manip_flags]
-        #labels_batch = np.array(labels_batch)
-        labels_batch = np.array(label_ids)
+        labels_batch = np.array(labels_batch)
         if self.balance == 0:
             return batch, labels_batch
         else:
