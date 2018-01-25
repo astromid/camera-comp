@@ -330,5 +330,5 @@ class TestSequence(ImageSequence):
                     images_batch.append(image)
         images_batch = np.array(images_batch).astype(np.float32)
         manip_flags = np.array(manip_flags)
-        return images_batch, manip_flags
+        return [images_batch, manip_flags]
 
