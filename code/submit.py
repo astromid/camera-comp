@@ -50,12 +50,11 @@ if __name__ == '__main__':
     if N_TTA != 0:
         test_seq.augment = 1
         for _ in range(N_TTA):
-            aug_probs = model.predict_generator(
+            probs *= model.predict_generator(
                 generator=test_seq,
                 steps=len(test_seq),
                 verbose=1
             )
-            probs *= aug_probs
     probs = probs ** (1 / (N_TTA + 1))
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)

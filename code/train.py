@@ -14,10 +14,10 @@ from keras_tqdm import TQDMCallback
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name')
-    # number of epochs with frozen resnet part
-    parser.add_argument('--f_epochs', type=int, default=1)
     parser.add_argument('--epochs', type=int)
     parser.add_argument('--batch', type=int)
+    # number of epochs with frozen pretrained part
+    parser.add_argument('--f_epochs', type=int, default=1)
     parser.add_argument('--bal', type=int, default=0)
     parser.add_argument('--aug', type=int, default=0)
     args = parser.parse_args()
@@ -40,12 +40,12 @@ if __name__ == '__main__':
 
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
-        monitor='val_loss',
+        monitor='val_categorical_accuracy',
         verbose=1,
         save_best_only=True
     )
     reduce_cb = ReduceLROnPlateau(
-        monitor='val_loss',
+        monitor='val_categorical_accuracy',
         factor=0.1,
         patience=6,
         verbose=1,
@@ -53,7 +53,7 @@ if __name__ == '__main__':
         min_lr=1e-6
     )
     cycle_cb = CycleReduceLROnPlateau(
-        monitor='val_loss',
+        monitor='val_categorical_accuracy',
         factor=0.1,
         patience=6,
         verbose=1,
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         )
     if EPOCHS > F_EPOCHS:
         # defrost pretrained block
-        for layer in model.get_layer('resnet50').layers:
+        for layer in model.layers:
             layer.trainable = True
         model.compile(
             optimizer=Adam(),

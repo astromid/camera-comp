@@ -78,11 +78,13 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
         lr = float(K.get_value(self.model.optimizer.lr))
+        print(f'lr: {lr}, min_lr: {self.min_lr}')
+        print(f'lr: {type(lr)}, min_lr: {type(self.min_lr)}')
         if lr == self.min_lr:
             self.min_lr_counter += 1
         if self.min_lr_counter >= 2 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
-            self.patience = max(int(self.patience / 1.5), 2)
+            self.cooldown = 0
             if self.verbose > 0:
                 print('\nEpoch %05d: Cycle returning to initial learning rate %s.' % (epoch + 1, self.start_lr))
             self.cooldown_counter = self.cooldown
@@ -175,24 +177,20 @@ class ImageSequence(Sequence):
     def _prepare_image(args):
         image, center = args
         if np.random.rand() < 0.3:
+            manip_image = ImageSequence._crop_image((image, 2 * CROP_SIDE, center))
             manip = np.random.choice([0, 0, 1, 1, 1, 1, 2, 2])
             if manip == 0:
                 rate = np.random.choice([70, 90])
-                manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
                 enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), int(rate)]
-                _, manip_image = cv2.imencode('.jpg', manip_image, enc_param)
-                manip_image = cv2.imdecode(manip_image, 1)
+                _, encoded_image = cv2.imencode('.jpg', manip_image, enc_param)
+                manip_image = cv2.imdecode(encoded_image, 1)
             elif manip == 1:
                 scale = np.random.choice([0.5, 0.8, 1.5, 2.0])
-                side_len = np.ceil(CROP_SIDE / scale).astype('int')
-                manip_image = ImageSequence._crop_image((image, side_len, center))
-                manip_image = cv2.resize(manip_image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                manip_image = cv2.resize(manip_image, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
             else:
                 gamma = np.random.choice([0.8, 1.2])
-                manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
                 manip_image = adjust_gamma(manip_image, gamma)
-            if manip_image.shape != (CROP_SIDE, CROP_SIDE, 3):
-                manip_image = ImageSequence._crop_image((manip_image, CROP_SIDE, center))
+            manip_image = ImageSequence._crop_image((manip_image, CROP_SIDE, center))
         else:
             manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
         return manip_image
@@ -201,11 +199,10 @@ class ImageSequence(Sequence):
     @jit
     def _augment_image(image):
         aug_image = image
-        if np.random.rand() < 0.5:
-            n_rotate = np.random.choice([1, 2, 3])
-            for _ in range(n_rotate):
-                aug_image = np.rot90(aug_image)
-        if np.random.rand() < 0.5:
+        n_rotate = np.random.choice([0, 1, 2, 3])
+        for _ in range(n_rotate):
+            aug_image = np.rot90(aug_image)
+        if np.random.rand() < 0.66:
             k_size = np.random.choice([3, 5])
             aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
         return aug_image
