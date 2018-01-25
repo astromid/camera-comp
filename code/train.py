@@ -49,7 +49,7 @@ if __name__ == '__main__':
         factor=0.5,
         patience=5,
         verbose=1,
-        epsilon=0.00001,
+        epsilon=0.0001,
         min_lr=1e-7
     )
     cycle_cb = CycleReduceLROnPlateau(
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         factor=0.5,
         patience=5,
         verbose=1,
-        epsilon=0.00001,
+        epsilon=0.0001,
         min_lr=1e-7
     )
     tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
