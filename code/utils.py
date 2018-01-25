@@ -246,9 +246,10 @@ class TrainSequence(ImageSequence):
             ohe[id_] = 1
             labels_batch.append(ohe)
         images_batch = np.array(images_batch).astype(np.float32)
-        manip_flags = np.array(manip_flags).reshape(-1, 1)
+        manip_flags = np.array(manip_flags)
         batch = [images_batch, manip_flags]
-        labels_batch = np.array(labels_batch)
+        #labels_batch = np.array(labels_batch)
+        labels_batch = np.array(label_ids)
         if self.balance == 0:
             return batch, labels_batch
         else:
@@ -288,9 +289,10 @@ class ValSequence(ImageSequence):
             ohe[id_] = 1
             labels_batch.append(ohe)
         images_batch = np.array(images_batch).astype(np.float32)
-        manip_flags = np.array(manip_flags).reshape(-1, 1)
+        manip_flags = np.array(manip_flags)
         batch = [images_batch, manip_flags]
-        labels_batch = np.array(labels_batch)
+        #labels_batch = np.array(labels_batch)
+        labels_batch = np.array(label_ids)
         if self.balance == 0:
             return batch, labels_batch
         else:
@@ -315,6 +317,6 @@ class TestSequence(ImageSequence):
                 for image in p.imap(self._augment_image, x):
                     images_batch.append(image)
         images_batch = np.array(images_batch).astype(np.float32)
-        manip_flags = np.array(manip_flags).reshape(-1, 1)
+        manip_flags = np.array(manip_flags)
         return images_batch, manip_flags
 
