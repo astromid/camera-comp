@@ -50,7 +50,7 @@ if __name__ == '__main__':
         patience=6,
         verbose=1,
         cooldown=3,
-        min_lr=1e-6
+        min_lr=5e-7
     )
     cycle_cb = CycleReduceLROnPlateau(
         monitor='val_categorical_accuracy',
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         patience=6,
         verbose=1,
         cooldown=3,
-        min_lr=1e-6
+        min_lr=5e-7
     )
     tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()

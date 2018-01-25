@@ -78,13 +78,12 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
         lr = float(K.get_value(self.model.optimizer.lr))
-        print(f'lr: {lr}, min_lr: {self.min_lr}')
-        print(f'lr: {type(lr)}, min_lr: {type(self.min_lr)}')
-        if lr == self.min_lr:
+        if np.isclose(lr, self.min_lr):
             self.min_lr_counter += 1
         if self.min_lr_counter >= 2 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
             self.cooldown = 0
+            self.min_lr_counter = 0
             if self.verbose > 0:
                 print('\nEpoch %05d: Cycle returning to initial learning rate %s.' % (epoch + 1, self.start_lr))
             self.cooldown_counter = self.cooldown
