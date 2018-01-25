@@ -83,6 +83,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.min_lr_counter += 1
         if self.min_lr_counter >= 2 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
+            self.patience -= 1
             self.cooldown = 0
             self.min_lr_counter = 0
             if self.verbose > 0:
