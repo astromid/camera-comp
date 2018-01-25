@@ -50,7 +50,7 @@ if __name__ == '__main__':
         patience=5,
         verbose=1,
         epsilon=0.0001,
-        min_lr=1e-7
+        min_lr=1e-8
     )
     cycle_cb = CycleReduceLROnPlateau(
         monitor='val_categorical_accuracy',
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         patience=5,
         verbose=1,
         epsilon=0.0001,
-        min_lr=1e-7
+        min_lr=1e-8
     )
     tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     if F_EPOCHS != 0:
         # train with frozen pretrained block
         model.compile(
-            optimizer=Adam(),
+            optimizer=Adam(lr=1e-4),
             loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         for layer in model.layers:
             layer.trainable = True
         model.compile(
-            optimizer=Adam(),
+            optimizer=Adam(lr=1e-4),
             loss=binary_crossentropy,
             metrics=[categorical_accuracy]
         )
