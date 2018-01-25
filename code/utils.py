@@ -96,6 +96,7 @@ class ImageStorage:
         self.images = []
         self.labels = []
         self.files = []
+        self.manip_flags = []
 
     def load_train_images(self):
         files = [os.path.relpath(file, TRAIN_DIR) for file in
@@ -117,8 +118,10 @@ class ImageStorage:
             with tqdm(desc='Loading test files', total=total) as pbar:
                 for result in p.imap_unordered(self._load_test_image, files):
                     image, filename = result
+                    manip_flag = [1. if filename.find('manip') != -1 else 0.][0]
                     self.images.append(image)
                     self.files.append(filename)
+                    self.manip_flags.append(manip_flag)
                     pbar.update()
 
     def shuffle_train_data(self):
@@ -193,9 +196,11 @@ class ImageSequence(Sequence):
                 gamma = np.random.choice([0.8, 1.2])
                 manip_image = adjust_gamma(manip_image, gamma)
             manip_image = ImageSequence._crop_image((manip_image, CROP_SIDE, center))
+            manip_flag = 1.
         else:
             manip_image = ImageSequence._crop_image((image, CROP_SIDE, center))
-        return manip_image
+            manip_flag = 0.
+        return manip_image, manip_flag
 
     @staticmethod
     @jit
@@ -223,10 +228,13 @@ class TrainSequence(ImageSequence):
         y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
         images_batch = []
+        manip_flags = []
         with ThreadPool() as p:
             args = list(zip(x, [False] * len(x)))
-            for image in p.imap(self._prepare_image, args):
+            for result in p.imap(self._prepare_image, args):
+                image, manip_flag = result
                 images_batch.append(image)
+                manip_flags.append(manip_flag)
             if self.augment != 0:
                 augmented_batch = []
                 for image in p.imap(self._augment_image, images_batch):
@@ -238,12 +246,14 @@ class TrainSequence(ImageSequence):
             ohe[id_] = 1
             labels_batch.append(ohe)
         images_batch = np.array(images_batch).astype(np.float32)
+        manip_flags = np.array(manip_flags)
+        batch = (images_batch, manip_flags)
         labels_batch = np.array(labels_batch)
         if self.balance == 0:
-            return images_batch, labels_batch
+            return batch, labels_batch
         else:
             weights = compute_sample_weight('balanced', label_ids)
-            return images_batch, labels_batch, weights
+            return batch, labels_batch, weights
 
     def on_epoch_end(self):
         self.data.shuffle_train_data()
@@ -260,10 +270,13 @@ class ValSequence(ImageSequence):
         y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
         label_ids = [LABEL2ID[label] for label in y]
         images_batch = []
+        manip_flags = []
         with ThreadPool() as p:
             args = list(zip(x, [True] * len(x)))
-            for image in p.imap(self._prepare_image, args):
+            for result in p.imap(self._prepare_image, args):
+                image, manip_flag = result
                 images_batch.append(image)
+                manip_flags.append(manip_flag)
             if self.augment != 0:
                 augmented_batch = []
                 for image in p.imap(self._augment_image, images_batch):
@@ -275,12 +288,14 @@ class ValSequence(ImageSequence):
             ohe[id_] = 1
             labels_batch.append(ohe)
         images_batch = np.array(images_batch).astype(np.float32)
+        manip_flags = np.array(manip_flags)
+        batch = (images_batch, manip_flags)
         labels_batch = np.array(labels_batch)
         if self.balance == 0:
-            return images_batch, labels_batch
+            return batch, labels_batch
         else:
             weights = compute_sample_weight('balanced', label_ids)
-            return images_batch, labels_batch, weights
+            return batch, labels_batch, weights
 
 
 class TestSequence(ImageSequence):
@@ -290,6 +305,7 @@ class TestSequence(ImageSequence):
 
     def __getitem__(self, idx):
         x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
+        manip_flags = self.data.manip_flags[idx * self.batch_size:(idx + 1) * self.batch_size]
         # for TTA
         if self.augment == 0:
             images_batch = x
@@ -299,5 +315,6 @@ class TestSequence(ImageSequence):
                 for image in p.imap(self._augment_image, x):
                     images_batch.append(image)
         images_batch = np.array(images_batch).astype(np.float32)
-        return images_batch
+        manip_flags = np.array(manip_flags)
+        return images_batch, manip_flags
 

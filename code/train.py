@@ -6,7 +6,7 @@ from utils import ImageStorage, TrainSequence, ValSequence
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam, SGD
-from keras.losses import binary_crossentropy, categorical_crossentropy
+from keras.losses import binary_crossentropy, sparse_categorical_crossentropy
 from keras.metrics import categorical_accuracy
 from utils import LoggerCallback, CycleReduceLROnPlateau
 from keras_tqdm import TQDMCallback
@@ -46,19 +46,19 @@ if __name__ == '__main__':
     )
     reduce_cb = ReduceLROnPlateau(
         monitor='val_categorical_accuracy',
-        factor=0.1,
-        patience=6,
+        factor=0.5,
+        patience=5,
         verbose=1,
-        cooldown=3,
-        min_lr=5e-7
+        epsilon=0.00001,
+        min_lr=1e-7
     )
     cycle_cb = CycleReduceLROnPlateau(
         monitor='val_categorical_accuracy',
-        factor=0.1,
-        patience=6,
+        factor=0.5,
+        patience=5,
         verbose=1,
-        cooldown=3,
-        min_lr=5e-7
+        epsilon=0.00001,
+        min_lr=1e-7
     )
     tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         # train with frozen pretrained block
         model.compile(
             optimizer=Adam(),
-            loss=binary_crossentropy,
+            loss=sparse_categorical_crossentropy,
             metrics=[categorical_accuracy]
         )
         hist_f = model.fit_generator(
@@ -86,7 +86,7 @@ if __name__ == '__main__':
             layer.trainable = True
         model.compile(
             optimizer=Adam(),
-            loss=binary_crossentropy,
+            loss=sparse_categorical_crossentropy,
             metrics=[categorical_accuracy]
         )
         hist = model.fit_generator(
@@ -97,7 +97,6 @@ if __name__ == '__main__':
             callbacks=[check_cb, cycle_cb, tb_cb, log_cb, tqdm_cb],
             validation_data=val_seq,
             validation_steps=len(val_seq),
-            max_queue_size=25,
             initial_epoch=F_EPOCHS
         )
     model.save(os.path.join(MODEL_DIR, 'model.h5'))
