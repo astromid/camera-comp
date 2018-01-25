@@ -164,6 +164,9 @@ class ImageSequence(Sequence):
     def _crop_image(args):
         image, side_len, center = args
         h, w, _ = image.shape
+        if h == side_len and w == side_len:
+            return image.copy()
+        assert h > side_len and w > side_len
         if center is False:
             h_start = np.random.randint(0, h - side_len)
             w_start = np.random.randint(0, w - side_len)
@@ -178,15 +181,15 @@ class ImageSequence(Sequence):
         image, center = args
         if np.random.rand() < 0.3:
             manip_image = ImageSequence._crop_image((image, 2 * CROP_SIDE, center))
-            manip = np.random.choice([0, 0, 1, 1, 1, 1, 2, 2])
-            if manip == 0:
+            manip_flag = np.random.choice([0, 0, 1, 1, 1, 1, 2, 2])
+            if manip_flag == 0:
                 rate = np.random.choice([70, 90])
                 enc_param = [int(cv2.IMWRITE_JPEG_QUALITY), int(rate)]
                 _, encoded_image = cv2.imencode('.jpg', manip_image, enc_param)
                 manip_image = cv2.imdecode(encoded_image, 1)
-            elif manip == 1:
+            elif manip_flag == 1:
                 scale = np.random.choice([0.5, 0.8, 1.5, 2.0])
-                manip_image = cv2.resize(manip_image, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                manip_image = cv2.resize(manip_image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
             else:
                 gamma = np.random.choice([0.8, 1.2])
                 manip_image = adjust_gamma(manip_image, gamma)
