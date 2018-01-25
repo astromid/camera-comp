@@ -32,11 +32,13 @@ if __name__ == '__main__':
         'augment': args.aug
     }
     os.makedirs(MODEL_DIR, exist_ok=True)
-    data = ImageStorage()
-    data.load_train_images()
+    train_data = ImageStorage()
+    train_data.load_train_images()
+    val_data = ImageStorage()
+    val_data.load_val_images()
 
-    train_seq = TrainSequence(data, TRAIN_PARAMS)
-    val_seq = ValSequence(data, TRAIN_PARAMS)
+    train_seq = TrainSequence(train_data, TRAIN_PARAMS)
+    val_seq = ValSequence(val_data, TRAIN_PARAMS)
 
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),

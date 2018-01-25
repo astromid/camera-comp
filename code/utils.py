@@ -28,6 +28,7 @@ LABELS = [
 N_CLASS = len(LABELS)
 ROOT_DIR = '..'
 TRAIN_DIR = os.path.join(ROOT_DIR, 'data', 'train')
+VAL_DIR = os.path.join(ROOT_DIR, 'data', 'val')
 TEST_DIR = os.path.join(ROOT_DIR, 'data', 'test')
 ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
@@ -104,6 +105,18 @@ class ImageStorage:
         with ThreadPool() as p:
             total = len(files)
             with tqdm(desc='Loading train files', total=total) as pbar:
+                for result in p.imap_unordered(self._load_train_image, files):
+                    image, label = result
+                    self.images.append(image)
+                    self.labels.append(label)
+                    pbar.update()
+
+    def load_val_images(self):
+        files = [os.path.relpath(file, VAL_DIR) for file in
+                 glob(os.path.join(VAL_DIR, '*', '*'))]
+        with ThreadPool() as p:
+            total = len(files)
+            with tqdm(desc='Loading validation files', total=total) as pbar:
                 for result in p.imap_unordered(self._load_train_image, files):
                     image, label = result
                     self.images.append(image)
