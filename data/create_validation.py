@@ -2,13 +2,15 @@ import os
 import urllib.request as req
 from tqdm import tqdm
 
-rootdir = 'val'
+VAL_DIR = 'val'
+URLS_DIR = 'val_urls'
 
-for folder in os.listdir(rootdir):
-    curr_path = os.path.join(rootdir, folder)
-    filename = 'urls'
-    with open(os.path.join(curr_path, filename)) as urls:
+for folder in os.listdir(URLS_DIR):
+    os.makedirs(os.path.join(VAL_DIR, folder))
+    with open(os.path.join(URLS_DIR, folder, 'urls')) as urls:
         for idx, url in enumerate(tqdm(urls, desc=f'Current folder: {folder}')):
             filename = '_'.join([str(idx), url.split('/')[-1][:-1]])
-            file = os.path.join(curr_path, filename)
+            file = os.path.join(VAL_DIR, folder, filename)
             req.urlretrieve(url, file)
+
+

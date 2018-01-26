@@ -49,7 +49,7 @@ if __name__ == '__main__':
     reduce_cb = ReduceLROnPlateau(
         monitor='val_categorical_accuracy',
         factor=0.3,
-        patience=5,
+        patience=6,
         verbose=1,
         epsilon=0.0001,
         min_lr=1e-7
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     cycle_cb = CycleReduceLROnPlateau(
         monitor='val_categorical_accuracy',
         factor=0.3,
-        patience=5,
+        patience=6,
         verbose=1,
         epsilon=0.0001,
         min_lr=1e-7

@@ -118,7 +118,7 @@ class ImageStorage:
         with ThreadPool() as p:
             total = len(files)
             with tqdm(desc='Loading validation files', total=total) as pbar:
-                for result in p.imap_unordered(self._load_train_image, files):
+                for result in p.imap_unordered(self._load_val_image, files):
                     image, label = result
                     self.images.append(image)
                     self.labels.append(label)
@@ -152,6 +152,16 @@ class ImageStorage:
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
         return image, label
+
+    @staticmethod
+    def _load_val_image(file):
+        label = os.path.dirname(file)
+        filename = os.path.basename(file)
+        image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
+        h, w, _ = image.shape
+        h_start = np.floor_divide(h - 2 * CROP_SIDE, 2)
+        w_start = np.floor_divide(w - 2 * CROP_SIDE, 2)
+        return image[h_start:h_start + 2 * CROP_SIDE, w_start:w_start + 2 * CROP_SIDE].copy(), label
 
     @staticmethod
     def _load_test_image(file):
