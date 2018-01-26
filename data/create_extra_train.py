@@ -12,9 +12,10 @@ for folder in os.listdir(URLS_DIR):
         urls = [url[:-1] for url in urls_file]
         count = 0
         for url in tqdm(urls, desc=f'Current folder: {folder}'):
-            filename = url.split('/')[-1][:-1]
+            filename = url.split('/')[-1]
             if filename in good_filenames:
                 count += 1
                 filename_ = '_'.join([str(count), filename])
                 file = os.path.join(TRAIN_DIR, folder, filename_)
                 req.urlretrieve(url, file)
+        print(f'Downloaded {count} files in folder {folder}')
