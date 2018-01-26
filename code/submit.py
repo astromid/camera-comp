@@ -52,8 +52,6 @@ if __name__ == '__main__':
                 steps=len(test_seq),
                 verbose=1
             )
-        # geometric mean
-        # probs = probs ** (1 / 5)
         probs /= 5
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)

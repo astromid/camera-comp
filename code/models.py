@@ -2,7 +2,7 @@ import utils
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, concatenate
 from keras.applications.resnet50 import ResNet50
-from keras.applications.densenet import DenseNet121
+from keras.applications.densenet import DenseNet201
 
 
 def resnet50():
@@ -25,8 +25,8 @@ def resnet50():
     return model
 
 
-def densenet121():
-    base_model = DenseNet121(
+def densenet201():
+    base_model = DenseNet201(
         include_top=False,
         weights='imagenet',
         pooling='avg'
