@@ -4,7 +4,7 @@ import utils
 import numpy as np
 import pandas as pd
 from keras.models import load_model
-from utils import ImageStorage, TestSequence
+from utils import TestSequence
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -17,12 +17,11 @@ if __name__ == '__main__':
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
     SUB_DIR = os.path.join(utils.ROOT_DIR, 'subs')
     SUB_PROB_DIR = os.path.join(SUB_DIR, 'probs')
-    N_TTA = args.tta
 
-    if N_TTA == 0:
+    if args.tta == 0:
         sub_end = '.csv'
     else:
-        sub_end = f'-tta{N_TTA}.csv'
+        sub_end = '-TTA.csv'
 
     if args.best == 0:
         MODEL_PATH = os.path.join(MODEL_DIR, 'model.h5')
@@ -38,30 +37,28 @@ if __name__ == '__main__':
         'batch_size': BATCH_SIZE,
         'augment': 0
     }
-    test_data = ImageStorage()
-    test_data.load_test_images()
-    test_seq = TestSequence(test_data, TEST_PARAMS)
+    test_seq = TestSequence(TEST_PARAMS)
     model = load_model(MODEL_PATH)
     probs = model.predict_generator(
         generator=test_seq,
         steps=len(test_seq),
         verbose=1
     )
-    if N_TTA != 0:
-        test_seq.augment = 1
-        for _ in range(N_TTA):
+    if args.tta != 0:
+        for aug_flag in range(1, 5):
+            test_seq.augment = aug_flag
             probs *= model.predict_generator(
                 generator=test_seq,
                 steps=len(test_seq),
                 verbose=1
             )
         # geometric mean
-        probs = probs ** (1 / (N_TTA + 1))
+        probs = probs ** (1 / (5))
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)
     labels = [utils.ID2LABEL[id_] for id_ in ids]
     data = {
-        'fname': test_seq.data.files,
+        'fname': test_seq.files,
         'camera': labels,
         'prob': probs_max
     }

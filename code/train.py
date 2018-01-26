@@ -2,8 +2,9 @@ import os
 import argparse
 import models
 import utils
-from utils import ImageStorage, TrainSequence, ValSequence
-from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
+from glob import glob
+from utils import TrainSequence, ValSequence
+from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
 from keras.losses import binary_crossentropy
@@ -32,13 +33,13 @@ if __name__ == '__main__':
         'augment': args.aug
     }
     os.makedirs(MODEL_DIR, exist_ok=True)
-    train_data = ImageStorage()
-    train_data.load_train_images()
-    val_data = ImageStorage()
-    val_data.load_val_images()
+    train_files = [os.path.relpath(file, utils.TRAIN_DIR) for file in
+                   glob(os.path.join(utils.TRAIN_DIR, '*', '*'))]
+    val_files = [os.path.relpath(file, utils.VAL_DIR) for file in
+                 glob(os.path.join(utils.VAL_DIR, '*', '*'))]
 
-    train_seq = TrainSequence(train_data, TRAIN_PARAMS)
-    val_seq = ValSequence(val_data, TRAIN_PARAMS)
+    train_seq = TrainSequence(train_files, TRAIN_PARAMS)
+    val_seq = ValSequence(val_files, TRAIN_PARAMS)
 
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
@@ -46,21 +47,13 @@ if __name__ == '__main__':
         verbose=1,
         save_best_only=True
     )
-    reduce_cb = ReduceLROnPlateau(
-        monitor='val_categorical_accuracy',
-        factor=0.3,
-        patience=6,
-        verbose=1,
-        epsilon=0.0001,
-        min_lr=1e-7
-    )
     cycle_cb = CycleReduceLROnPlateau(
         monitor='val_categorical_accuracy',
-        factor=0.3,
-        patience=6,
+        factor=0.25,
+        patience=5,
         verbose=1,
         epsilon=0.0001,
-        min_lr=1e-7
+        min_lr=1e-8
     )
     tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
     log_cb = LoggerCallback()

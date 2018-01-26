@@ -7,7 +7,6 @@ from glob import glob
 from keras.utils import Sequence
 from keras.callbacks import Callback, ReduceLROnPlateau
 from tqdm import tqdm
-from abc import abstractmethod
 from sklearn.utils.class_weight import compute_sample_weight
 from multiprocessing.pool import ThreadPool
 from skimage.exposure import adjust_gamma
@@ -83,7 +82,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.min_lr_counter += 1
         if self.min_lr_counter >= 2 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
-            self.patience -= 1
+            self.patience = max(3, self.patience - 1)
             self.cooldown = 0
             self.min_lr_counter = 0
             if self.verbose > 0:
@@ -92,89 +91,14 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.wait = 0
 
 
-class ImageStorage:
-
-    def __init__(self):
-        self.images = []
-        self.labels = []
-        self.files = []
-        self.manip_flags = []
-
-    def load_train_images(self):
-        files = [os.path.relpath(file, TRAIN_DIR) for file in
-                 glob(os.path.join(TRAIN_DIR, '*', '*'))]
-        with ThreadPool() as p:
-            total = len(files)
-            with tqdm(desc='Loading train files', total=total) as pbar:
-                for result in p.imap_unordered(self._load_train_image, files):
-                    image, label = result
-                    self.images.append(image)
-                    self.labels.append(label)
-                    pbar.update()
-
-    def load_val_images(self):
-        files = [os.path.relpath(file, VAL_DIR) for file in
-                 glob(os.path.join(VAL_DIR, '*', '*'))]
-        with ThreadPool() as p:
-            total = len(files)
-            with tqdm(desc='Loading validation files', total=total) as pbar:
-                for result in p.imap_unordered(self._load_val_image, files):
-                    image, label = result
-                    self.images.append(image)
-                    self.labels.append(label)
-                    pbar.update()
-
-    def load_test_images(self):
-        files = [os.path.relpath(file, TEST_DIR) for file in
-                 glob(os.path.join(TEST_DIR, '*'))]
-        with ThreadPool() as p:
-            total = len(files)
-            with tqdm(desc='Loading test files', total=total) as pbar:
-                for result in p.imap_unordered(self._load_test_image, files):
-                    image, filename = result
-                    manip_flag = [1. if filename.find('manip') != -1 else 0.][0]
-                    self.images.append(image)
-                    self.files.append(filename)
-                    self.manip_flags.append(manip_flag)
-                    pbar.update()
-
-    def shuffle_train_data(self):
-        assert len(self.images) == len(self.labels)
-        data = list(zip(self.images, self.labels))
-        np.random.shuffle(data)
-        self.images, self.labels = zip(*data)
-        self.images = list(self.images)
-        self.labels = list(self.labels)
-
-    @staticmethod
-    def _load_train_image(file):
-        label = os.path.dirname(file)
-        filename = os.path.basename(file)
-        image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        return image, label
-
-    @staticmethod
-    def _load_val_image(file):
-        label = os.path.dirname(file)
-        filename = os.path.basename(file)
-        image = cv2.imread(os.path.join(VAL_DIR, label, filename))
-        h, w, _ = image.shape
-        h_start = np.floor_divide(h - 2 * CROP_SIDE, 2)
-        w_start = np.floor_divide(w - 2 * CROP_SIDE, 2)
-        return image[h_start:h_start + 2 * CROP_SIDE, w_start:w_start + 2 * CROP_SIDE].copy(), label
-
-    @staticmethod
-    def _load_test_image(file):
-        filename = os.path.basename(file)
-        image = cv2.imread(os.path.join(TEST_DIR, filename))
-        return image, filename
-
-
 class ImageSequence(Sequence):
 
-    def __init__(self, data, params):
-        self.data = data
-        self.len_ = len(self.data.images)
+    def __init__(self, params):
+        self.images = []
+        self.labels = []
+        self.len_ = 0
+        self.center = None
+        self.balance = None
         self.batch_size = params['batch_size']
         self.augment = params['augment']
         self.p = ThreadPool()
@@ -182,9 +106,36 @@ class ImageSequence(Sequence):
     def __len__(self):
         return np.ceil(self.len_ / self.batch_size).astype('int')
 
-    @abstractmethod
-    def __getitem__(self, item):
-        raise NotImplementedError
+    def __getitem__(self, idx):
+        x = self.images[idx * self.batch_size:(idx + 1) * self.batch_size]
+        y = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        label_ids = [LABEL2ID[label] for label in y]
+        images_batch = []
+        manip_flags = []
+        args = list(zip(x, [self.center] * len(x)))
+        for result in self.p.imap(self._prepare_image, args):
+            image, manip_flag = result
+            images_batch.append(image)
+            manip_flags.append(manip_flag)
+        if self.augment != 0:
+            augmented_batch = []
+            for image in self.p.imap(self._augment_image, images_batch):
+                augmented_batch.append(image)
+            images_batch = augmented_batch
+        labels_batch = []
+        for id_ in label_ids:
+            ohe = np.zeros(N_CLASS)
+            ohe[id_] = 1
+            labels_batch.append(ohe)
+        images_batch = np.array(images_batch).astype(np.float32)
+        manip_flags = np.array(manip_flags)
+        batch = [images_batch, manip_flags]
+        labels_batch = np.array(labels_batch)
+        if self.balance == 0:
+            return batch, labels_batch
+        else:
+            weights = compute_sample_weight('balanced', label_ids)
+            return batch, labels_batch, weights
 
     @staticmethod
     @jit
@@ -242,104 +193,116 @@ class ImageSequence(Sequence):
 
 class TrainSequence(ImageSequence):
 
-    def __init__(self, data, params):
-        super().__init__(data, params)
+    def __init__(self, files, params):
+        super().__init__(params)
+        self.center = False
         self.balance = params['balance']
+        self.load_images(files)
         # shuffle before start
         self.on_epoch_end()
 
-    def __getitem__(self, idx):
-        x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
-        y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
-        label_ids = [LABEL2ID[label] for label in y]
-        images_batch = []
-        manip_flags = []
-        # with ThreadPool() as p:
-        args = list(zip(x, [False] * len(x)))
-        for result in self.p.imap(self._prepare_image, args):
-            image, manip_flag = result
-            images_batch.append(image)
-            manip_flags.append(manip_flag)
-        if self.augment != 0:
-            augmented_batch = []
-            for image in self.p.imap(self._augment_image, images_batch):
-                augmented_batch.append(image)
-            images_batch = augmented_batch
-        labels_batch = []
-        for id_ in label_ids:
-            ohe = np.zeros(N_CLASS)
-            ohe[id_] = 1
-            labels_batch.append(ohe)
-        images_batch = np.array(images_batch).astype(np.float32)
-        manip_flags = np.array(manip_flags)
-        batch = [images_batch, manip_flags]
-        labels_batch = np.array(labels_batch)
-        if self.balance == 0:
-            return batch, labels_batch
-        else:
-            weights = compute_sample_weight('balanced', label_ids)
-            return batch, labels_batch, weights
-
     def on_epoch_end(self):
-        self.data.shuffle_train_data()
+        assert len(self.images) == len(self.labels)
+        data = list(zip(self.images, self.labels))
+        np.random.shuffle(data)
+        self.images, self.labels = zip(*data)
+        self.images = list(self.images)
+        self.labels = list(self.labels)
+
+    def load_images(self, files):
+        self.len_ = len(files)
+        with tqdm(desc='Loading train files', total=self.len_) as pbar:
+            for result in self.p.imap_unordered(self._load_image, files):
+                image, label = result
+                self.images.append(image)
+                self.labels.append(label)
+                pbar.update()
+
+    @staticmethod
+    def _load_image(file):
+        label = os.path.dirname(file)
+        filename = os.path.basename(file)
+        image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
+        return image, label
 
 
 class ValSequence(ImageSequence):
 
-    def __init__(self, data, params):
-        super().__init__(data, params)
+    def __init__(self, files, params):
+        super().__init__(params)
+        self.center = True
         self.balance = params['balance']
+        self.load_images(files)
 
-    def __getitem__(self, idx):
-        x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
-        y = self.data.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
-        label_ids = [LABEL2ID[label] for label in y]
-        images_batch = []
-        manip_flags = []
-        # with ThreadPool() as p:
-        args = list(zip(x, [True] * len(x)))
-        for result in self.p.imap(self._prepare_image, args):
-            image, manip_flag = result
-            images_batch.append(image)
-            manip_flags.append(manip_flag)
-        if self.augment != 0:
-            augmented_batch = []
-            for image in self.p.imap(self._augment_image, images_batch):
-                augmented_batch.append(image)
-            images_batch = augmented_batch
-        labels_batch = []
-        for id_ in label_ids:
-            ohe = np.zeros(N_CLASS)
-            ohe[id_] = 1
-            labels_batch.append(ohe)
-        images_batch = np.array(images_batch).astype(np.float32)
-        manip_flags = np.array(manip_flags)
-        batch = [images_batch, manip_flags]
-        labels_batch = np.array(labels_batch)
-        if self.balance == 0:
-            return batch, labels_batch
-        else:
-            weights = compute_sample_weight('balanced', label_ids)
-            return batch, labels_batch, weights
+    def load_images(self, files):
+        self.len_ = len(files)
+        with tqdm(desc='Loading validation files', total=self.len_) as pbar:
+            for result in self.p.imap_unordered(self._load_image, files):
+                image, label = result
+                self.images.append(image)
+                self.labels.append(label)
+                pbar.update()
+
+    @staticmethod
+    def _load_image(file):
+        label = os.path.dirname(file)
+        filename = os.path.basename(file)
+        image = cv2.imread(os.path.join(VAL_DIR, label, filename))
+        return ImageSequence._crop_image((image, 2 * CROP_SIDE, True)), label
 
 
 class TestSequence(ImageSequence):
 
-    def __init__(self, data, params):
-        super().__init__(data, params)
+    def __init__(self, params):
+        super().__init__(params)
+        self.files = []
+        self.manip_flags = []
+        self.load_test_images()
 
     def __getitem__(self, idx):
-        x = self.data.images[idx * self.batch_size:(idx + 1) * self.batch_size]
-        manip_flags = self.data.manip_flags[idx * self.batch_size:(idx + 1) * self.batch_size]
+        x = self.images[idx * self.batch_size:(idx + 1) * self.batch_size]
+        y = self.manip_flags[idx * self.batch_size:(idx + 1) * self.batch_size]
         # for TTA
         if self.augment == 0:
             images_batch = x
         else:
             images_batch = []
-            # with ThreadPool() as p:
-            for image in self.p.imap(self._augment_image, x):
+            args = list(zip(x, [self.augment] * len(x)))
+            for image in self.p.imap(self._augment_image, args):
                 images_batch.append(image)
         images_batch = np.array(images_batch).astype(np.float32)
-        manip_flags = np.array(manip_flags)
+        manip_flags = np.array(y)
         return [images_batch, manip_flags]
+
+    def load_test_images(self):
+        files = [os.path.relpath(file, TEST_DIR) for file in
+                 glob(os.path.join(TEST_DIR, '*'))]
+        self.len_ = len(files)
+        with tqdm(desc='Loading test files', total=self.len_) as pbar:
+            for result in self.p.imap_unordered(self._load_image, files):
+                image, filename = result
+                manip_flag = [1. if filename.find('manip') != -1 else 0.][0]
+                self.images.append(image)
+                self.files.append(filename)
+                self.labels.append(manip_flag)
+                pbar.update()
+
+    @staticmethod
+    def _load_image(file):
+        filename = os.path.basename(file)
+        image = cv2.imread(os.path.join(TEST_DIR, filename))
+        return image, filename
+
+    @staticmethod
+    @jit
+    def _augment_image(args):
+        image, aug_flag = args
+        if aug_flag == 1:
+            return np.flip(image, 0)
+        elif aug_flag == 2:
+            return np.flip(image, 1)
+        elif aug_flag == 3:
+            return cv2.GaussianBlur(image, (3, 3), 0)
+        elif aug_flag == 4:
+            return cv2.GaussianBlur(image, (5, 5), 0)
 

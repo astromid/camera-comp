@@ -31,11 +31,15 @@ def densenet121():
         weights='imagenet',
         pooling='avg'
     )
+    manip_flags = Input(shape=(1,))
     x = base_model.output
-    x = Dense(units=2048, activation='relu')(x)
-    x = Dropout(rate=0.2)(x)
+    x = concatenate([x, manip_flags])
+    x = Dense(units=512, activation='relu')(x)
+    x = Dropout(rate=0.3)(x)
+    x = Dense(units=128, activation='relu')(x)
+    x = Dropout(rate=0.3)(x)
     out = Dense(units=utils.N_CLASS, activation='softmax')(x)
-    model = Model(inputs=base_model.input, outputs=out)
+    model = Model(inputs=(base_model.input, manip_flags), outputs=out)
     for layer in base_model.layers:
         layer.trainable = False
     return model
