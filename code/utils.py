@@ -157,7 +157,7 @@ class ImageStorage:
     def _load_val_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
-        image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
+        image = cv2.imread(os.path.join(VAL_DIR, label, filename))
         h, w, _ = image.shape
         h_start = np.floor_divide(h - 2 * CROP_SIDE, 2)
         w_start = np.floor_divide(w - 2 * CROP_SIDE, 2)
