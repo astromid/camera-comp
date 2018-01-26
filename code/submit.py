@@ -47,13 +47,13 @@ if __name__ == '__main__':
     if args.tta != 0:
         for aug_flag in range(1, 5):
             test_seq.augment = aug_flag
-            probs *= model.predict_generator(
+            probs += model.predict_generator(
                 generator=test_seq,
                 steps=len(test_seq),
                 verbose=1
             )
         # geometric mean
-        probs = probs ** (1 / (5))
+        probs = probs ** (1 / 5)
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)
     labels = [utils.ID2LABEL[id_] for id_ in ids]

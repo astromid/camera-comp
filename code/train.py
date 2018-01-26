@@ -41,14 +41,25 @@ if __name__ == '__main__':
     train_seq = TrainSequence(train_files, TRAIN_PARAMS)
     val_seq = ValSequence(val_files, TRAIN_PARAMS)
 
+    model_args = {
+        'optimizer': Adam(lr=1e-4),
+        'loss': binary_crossentropy,
+    }
+    if args.bal == 0:
+        monitor = 'val_categorical_accuracy'
+        model_args['metrics'] = [categorical_accuracy]
+    else:
+        monitor = 'val_weighted_categorical_accuracy'
+        model_args['weighted_metrics'] = [categorical_accuracy]
+
     check_cb = ModelCheckpoint(
         filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
-        monitor='val_categorical_accuracy',
+        monitor=monitor,
         verbose=1,
         save_best_only=True
     )
     cycle_cb = CycleReduceLROnPlateau(
-        monitor='val_categorical_accuracy',
+        monitor=monitor,
         factor=0.25,
         patience=5,
         verbose=1,
@@ -61,11 +72,7 @@ if __name__ == '__main__':
     model = models.resnet50()
     if F_EPOCHS != 0:
         # train with frozen pretrained block
-        model.compile(
-            optimizer=Adam(lr=1e-4),
-            loss=binary_crossentropy,
-            metrics=[categorical_accuracy]
-        )
+        model.compile(model_args)
         hist_f = model.fit_generator(
             generator=train_seq,
             steps_per_epoch=len(train_seq),
@@ -79,11 +86,7 @@ if __name__ == '__main__':
         # defrost pretrained block
         for layer in model.layers:
             layer.trainable = True
-        model.compile(
-            optimizer=Adam(lr=1e-4),
-            loss=binary_crossentropy,
-            metrics=[categorical_accuracy]
-        )
+        model.compile(model_args)
         hist = model.fit_generator(
             generator=train_seq,
             steps_per_epoch=len(train_seq),
