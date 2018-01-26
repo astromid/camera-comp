@@ -284,7 +284,7 @@ class TestSequence(ImageSequence):
                 manip_flag = [1. if filename.find('manip') != -1 else 0.][0]
                 self.images.append(image)
                 self.files.append(filename)
-                self.labels.append(manip_flag)
+                self.manip_flags.append(manip_flag)
                 pbar.update()
 
     @staticmethod
