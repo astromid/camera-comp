@@ -53,7 +53,8 @@ if __name__ == '__main__':
                 verbose=1
             )
         # geometric mean
-        probs = probs ** (1 / 5)
+        # probs = probs ** (1 / 5)
+        probs /= 5
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)
     labels = [utils.ID2LABEL[id_] for id_ in ids]
