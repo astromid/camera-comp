@@ -177,6 +177,7 @@ class ImageSequence(Sequence):
         self.len_ = len(self.data.images)
         self.batch_size = params['batch_size']
         self.augment = params['augment']
+        self.p = ThreadPool()
 
     def __len__(self):
         return np.ceil(self.len_ / self.batch_size).astype('int')
@@ -253,17 +254,17 @@ class TrainSequence(ImageSequence):
         label_ids = [LABEL2ID[label] for label in y]
         images_batch = []
         manip_flags = []
-        with ThreadPool() as p:
-            args = list(zip(x, [False] * len(x)))
-            for result in p.imap(self._prepare_image, args):
-                image, manip_flag = result
-                images_batch.append(image)
-                manip_flags.append(manip_flag)
-            if self.augment != 0:
-                augmented_batch = []
-                for image in p.imap(self._augment_image, images_batch):
-                    augmented_batch.append(image)
-                images_batch = augmented_batch
+        # with ThreadPool() as p:
+        args = list(zip(x, [False] * len(x)))
+        for result in self.p.imap(self._prepare_image, args):
+            image, manip_flag = result
+            images_batch.append(image)
+            manip_flags.append(manip_flag)
+        if self.augment != 0:
+            augmented_batch = []
+            for image in self.p.imap(self._augment_image, images_batch):
+                augmented_batch.append(image)
+            images_batch = augmented_batch
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -295,17 +296,17 @@ class ValSequence(ImageSequence):
         label_ids = [LABEL2ID[label] for label in y]
         images_batch = []
         manip_flags = []
-        with ThreadPool() as p:
-            args = list(zip(x, [True] * len(x)))
-            for result in p.imap(self._prepare_image, args):
-                image, manip_flag = result
-                images_batch.append(image)
-                manip_flags.append(manip_flag)
-            if self.augment != 0:
-                augmented_batch = []
-                for image in p.imap(self._augment_image, images_batch):
-                    augmented_batch.append(image)
-                images_batch = augmented_batch
+        # with ThreadPool() as p:
+        args = list(zip(x, [True] * len(x)))
+        for result in self.p.imap(self._prepare_image, args):
+            image, manip_flag = result
+            images_batch.append(image)
+            manip_flags.append(manip_flag)
+        if self.augment != 0:
+            augmented_batch = []
+            for image in self.p.imap(self._augment_image, images_batch):
+                augmented_batch.append(image)
+            images_batch = augmented_batch
         labels_batch = []
         for id_ in label_ids:
             ohe = np.zeros(N_CLASS)
@@ -335,9 +336,9 @@ class TestSequence(ImageSequence):
             images_batch = x
         else:
             images_batch = []
-            with ThreadPool() as p:
-                for image in p.imap(self._augment_image, x):
-                    images_batch.append(image)
+            # with ThreadPool() as p:
+            for image in self.p.imap(self._augment_image, x):
+                images_batch.append(image)
         images_batch = np.array(images_batch).astype(np.float32)
         manip_flags = np.array(manip_flags)
         return [images_batch, manip_flags]
