@@ -87,7 +87,7 @@ if __name__ == '__main__':
         save_best_only=True)
     cycle_cb = CycleReduceLROnPlateau(
         monitor=monitor,
-        factor=0.25,
+        factor=0.3,
         patience=5,
         verbose=1,
         epsilon=0.0001,
