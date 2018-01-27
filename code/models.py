@@ -46,7 +46,7 @@ def densenet201():
 def train_model(model, train, val, model_args, f_epochs, epochs, cb_f, cb_e):
     if f_epochs != 0:
         # train with frozen pretrained block
-        model.compile(model_args)
+        model.compile(**model_args)
         model.fit_generator(
             generator=train,
             steps_per_epoch=len(train),
@@ -59,7 +59,7 @@ def train_model(model, train, val, model_args, f_epochs, epochs, cb_f, cb_e):
         # defrost pretrained block
         for layer in model.layers:
             layer.trainable = True
-        model.compile(model_args)
+        model.compile(**model_args)
         model.fit_generator(
             generator=train,
             steps_per_epoch=len(train),
