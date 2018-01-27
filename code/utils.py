@@ -22,8 +22,7 @@ LABELS = [
     'Motorola-X',
     'Samsung-Galaxy-Note3',
     'Samsung-Galaxy-S4',
-    'Sony-NEX-7'
-]
+    'Sony-NEX-7']
 N_CLASS = len(LABELS)
 ROOT_DIR = '..'
 TRAIN_DIR = os.path.join(ROOT_DIR, 'data', 'train')
@@ -100,7 +99,7 @@ class ImageSequence(Sequence):
         self.center = None
         self.balance = None
         self.batch_size = params['batch_size']
-        self.augment = params['augment']
+        self.augmentation = params['augmentation']
         self.p = ThreadPool()
 
     def __len__(self):
@@ -117,7 +116,7 @@ class ImageSequence(Sequence):
             image, manip_flag = result
             images_batch.append(image)
             manip_flags.append(manip_flag)
-        if self.augment != 0:
+        if self.augmentation:
             augmented_batch = []
             for image in self.p.imap(self._augment_image, images_batch):
                 augmented_batch.append(image)
@@ -129,13 +128,12 @@ class ImageSequence(Sequence):
             labels_batch.append(ohe)
         images_batch = np.array(images_batch).astype(np.float32)
         manip_flags = np.array(manip_flags)
-        batch = [images_batch, manip_flags]
         labels_batch = np.array(labels_batch)
-        if self.balance == 0:
-            return batch, labels_batch
-        else:
+        if self.balance:
             weights = compute_sample_weight('balanced', label_ids)
-            return batch, labels_batch, weights
+            return [images_batch, manip_flags], labels_batch, weights
+        else:
+            return [images_batch, manip_flags], labels_batch
 
     @staticmethod
     @jit
@@ -145,12 +143,12 @@ class ImageSequence(Sequence):
         if h == side_len and w == side_len:
             return image.copy()
         assert h > side_len and w > side_len
-        if center is False:
-            h_start = np.random.randint(0, h - side_len)
-            w_start = np.random.randint(0, w - side_len)
-        else:
+        if center:
             h_start = np.floor_divide(h - side_len, 2)
             w_start = np.floor_divide(w - side_len, 2)
+        else:
+            h_start = np.random.randint(0, h - side_len)
+            w_start = np.random.randint(0, w - side_len)
         return image[h_start:h_start + side_len, w_start:w_start + side_len].copy()
 
     @staticmethod
@@ -202,7 +200,6 @@ class TrainSequence(ImageSequence):
         self.on_epoch_end()
 
     def on_epoch_end(self):
-        assert len(self.images) == len(self.labels)
         data = list(zip(self.images, self.labels))
         np.random.shuffle(data)
         self.images, self.labels = zip(*data)
@@ -210,20 +207,26 @@ class TrainSequence(ImageSequence):
         self.labels = list(self.labels)
 
     def load_images(self, files):
-        self.len_ = len(files)
-        with tqdm(desc='Loading train files', total=self.len_) as pbar:
-            for result in self.p.imap_unordered(self._load_image, files):
+        with tqdm(desc='Loading train files', total=len(files)) as pbar:
+            for result in self.p.imap(self._load_image, files):
                 image, label = result
-                self.images.append(image)
-                self.labels.append(label)
+                if image is not None:
+                    self.images.append(image)
+                    self.labels.append(label)
                 pbar.update()
+        self.len_ = len(self.images)
+        print(f'Successfully loaded {self.len_} train images')
 
     @staticmethod
     def _load_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        return image, label
+        h, w, _ = image.shape
+        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE:
+            return None, None
+        else:
+            return image, label
 
 
 class ValSequence(ImageSequence):
@@ -235,20 +238,26 @@ class ValSequence(ImageSequence):
         self.load_images(files)
 
     def load_images(self, files):
-        self.len_ = len(files)
-        with tqdm(desc='Loading validation files', total=self.len_) as pbar:
-            for result in self.p.imap_unordered(self._load_image, files):
+        with tqdm(desc='Loading validation files', total=len(files)) as pbar:
+            for result in self.p.imap(self._load_image, files):
                 image, label = result
-                self.images.append(image)
-                self.labels.append(label)
+                if image is not None:
+                    self.images.append(image)
+                    self.labels.append(label)
                 pbar.update()
+        self.len_ = len(self.images)
+        print(f'Successfully loaded {self.len_} validation images')
 
     @staticmethod
     def _load_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(VAL_DIR, label, filename))
-        return ImageSequence._crop_image((image, 2 * CROP_SIDE, True)), label
+        h, w, _ = image.shape
+        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE:
+            return None, None
+        else:
+            return ImageSequence._crop_image((image, 2 * CROP_SIDE, True)), label
 
 
 class TestSequence(ImageSequence):
@@ -263,23 +272,23 @@ class TestSequence(ImageSequence):
         x = self.images[idx * self.batch_size:(idx + 1) * self.batch_size]
         y = self.manip_flags[idx * self.batch_size:(idx + 1) * self.batch_size]
         # for TTA
-        if self.augment == 0:
-            images_batch = x
-        else:
+        if self.augmentation:
             images_batch = []
-            args = list(zip(x, [self.augment] * len(x)))
+            args = list(zip(x, [self.augmentation] * len(x)))
             for image in self.p.imap(self._augment_image, args):
                 images_batch.append(image)
+        else:
+            images_batch = x
         images_batch = np.array(images_batch).astype(np.float32)
         manip_flags = np.array(y)
         return [images_batch, manip_flags]
 
     def load_test_images(self):
-        files = [os.path.relpath(file, TEST_DIR) for file in
-                 glob(os.path.join(TEST_DIR, '*'))]
+        files = sorted([os.path.relpath(file, TEST_DIR) for file in
+                        glob(os.path.join(TEST_DIR, '*'))])
         self.len_ = len(files)
         with tqdm(desc='Loading test files', total=self.len_) as pbar:
-            for result in self.p.imap_unordered(self._load_image, files):
+            for result in self.p.imap(self._load_image, files):
                 image, filename = result
                 manip_flag = [1. if filename.find('manip') != -1 else 0.][0]
                 self.images.append(image)

@@ -11,41 +11,66 @@ from keras.losses import binary_crossentropy
 from keras.metrics import categorical_accuracy
 from utils import LoggerCallback, CycleReduceLROnPlateau
 from keras_tqdm import TQDMCallback
+from sklearn.model_selection import StratifiedKFold
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name')
-    parser.add_argument('--epochs', type=int)
-    parser.add_argument('--batch', type=int)
-    # number of epochs with frozen pretrained part
-    parser.add_argument('--f_epochs', type=int, default=1)
-    parser.add_argument('--bal', type=int, default=0)
-    parser.add_argument('--aug', type=int, default=0)
+    parser.add_argument('-n', '--name', help='Name of the network')
+    parser.add_argument('-e', '--epochs', type=int, help='Total number of epochs to train')
+    parser.add_argument('-b', '--batch_size', type=int, default=16)
+    parser.add_argument('-fe', '--f_epochs', type=int, default=1, help='Number of epochs w/ frozen base model')
+    parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4, help='Initial learning rate')
+    parser.add_argument('-f', '--folds', type=int, default=1, help='Number of folds')
+    parser.add_argument('-cf', '--current_fold', type=int, default=1, help='Which fold is used for training')
+    parser.add_argument('-s', '--seed', type=int, default=12017952)
+    parser.add_argument('-x', '--extra', action='store_true', help='Enables extra train data')
+    parser.add_argument('-bal', '--balance', action='store_true', help='Enables sample balancing')
+    parser.add_argument('-aug', '--augmentation', action='store_true', help='Enables augmentation during training')
     args = parser.parse_args()
 
+    if args.extra and args.folds < 3:
+        print('No way to load entire extra dataset into RAM')
+        raise MemoryError
+
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
-    F_EPOCHS = args.f_epochs
-    EPOCHS = args.epochs
-    BATCH_SIZE = args.batch
     TRAIN_PARAMS = {
-        'batch_size': BATCH_SIZE,
-        'balance': args.bal,
-        'augment': args.aug
-    }
+        'batch_size': args.batch_size,
+        'balance': args.balance,
+        'augmentation': args.augmentation}
     os.makedirs(MODEL_DIR, exist_ok=True)
-    train_files = [os.path.relpath(file, utils.TRAIN_DIR) for file in
-                   glob(os.path.join(utils.TRAIN_DIR, '*', '*'))]
-    val_files = [os.path.relpath(file, utils.VAL_DIR) for file in
-                 glob(os.path.join(utils.VAL_DIR, '*', '*'))]
+    all_train_files = sorted([os.path.relpath(file, utils.TRAIN_DIR) for file in
+                              glob(os.path.join(utils.TRAIN_DIR, '*', '*'))])
+    if not args.extra:
+        # all filenames in original dataset start with '('
+        all_train_files = [file for file in all_train_files if file.startswith('(')]
+    extra_val_files = sorted([os.path.relpath(file, utils.VAL_DIR) for file in
+                              glob(os.path.join(utils.VAL_DIR, '*', '*'))])
+    if args.folds > 1:
+        skf = StratifiedKFold(n_splits=args.folds, shuffle=True, random_state=args.seed)
+        labels = [os.path.dirname(file) for file in all_train_files]
+        train_idxs = []
+        val_idxs = []
+        for train_idx, val_idx in skf.split(all_train_files, labels):
+            train_idxs.append(train_idx)
+            val_idxs.append(val_idx)
+        train_files = all_train_files[train_idxs[args.current_fold - 1]]
+        val_files = all_train_files[val_idxs[args.current_fold - 1]]
+        # need to redirect directory
+        utils.VAL_DIR = utils.TRAIN_DIR
+        model_name = f'fold{args.current_fold}'
+        print(f'Current fold {args.current_fold}')
+    else:
+        train_files = all_train_files
+        val_files = extra_val_files
+        model_name = 'model'
 
     train_seq = TrainSequence(train_files, TRAIN_PARAMS)
     val_seq = ValSequence(val_files, TRAIN_PARAMS)
 
     model_args = {
-        'optimizer': Adam(lr=1e-4),
-        'loss': binary_crossentropy,
-    }
-    if args.bal == 0:
+        'optimizer': Adam(lr=args.learning_rate),
+        'loss': binary_crossentropy}
+    if args.balance == 0:
         monitor = 'val_categorical_accuracy'
         model_args['metrics'] = [categorical_accuracy]
     else:
@@ -53,49 +78,32 @@ if __name__ == '__main__':
         model_args['weighted_metrics'] = [categorical_accuracy]
 
     check_cb = ModelCheckpoint(
-        filepath=os.path.join(MODEL_DIR, 'model-best.h5'),
+        filepath=os.path.join(MODEL_DIR, model_name + '-best.h5'),
         monitor=monitor,
         verbose=1,
-        save_best_only=True
-    )
+        save_best_only=True)
     cycle_cb = CycleReduceLROnPlateau(
         monitor=monitor,
         factor=0.25,
         patience=5,
         verbose=1,
         epsilon=0.0001,
-        min_lr=1e-8
-    )
-    tb_cb = TensorBoard(MODEL_DIR, batch_size=BATCH_SIZE)
+        min_lr=1e-8)
+    tb_cb = TensorBoard(MODEL_DIR, batch_size=args.batch_size)
     log_cb = LoggerCallback()
     tqdm_cb = TQDMCallback(leave_inner=False)
+    cb_f = [log_cb, tqdm_cb]
+    cb_e = [check_cb, cycle_cb, tb_cb, log_cb, tqdm_cb]
     model = models.resnet50()
-    if F_EPOCHS != 0:
-        # train with frozen pretrained block
-        model.compile(model_args)
-        hist_f = model.fit_generator(
-            generator=train_seq,
-            steps_per_epoch=len(train_seq),
-            epochs=F_EPOCHS,
-            verbose=0,
-            callbacks=[log_cb, tqdm_cb],
-            validation_data=val_seq,
-            validation_steps=len(val_seq)
-        )
-    if EPOCHS > F_EPOCHS:
-        # defrost pretrained block
-        for layer in model.layers:
-            layer.trainable = True
-        model.compile(model_args)
-        hist = model.fit_generator(
-            generator=train_seq,
-            steps_per_epoch=len(train_seq),
-            epochs=EPOCHS,
-            verbose=0,
-            callbacks=[check_cb, cycle_cb, tb_cb, log_cb, tqdm_cb],
-            validation_data=val_seq,
-            validation_steps=len(val_seq),
-            initial_epoch=F_EPOCHS
-        )
-    model.save(os.path.join(MODEL_DIR, 'model.h5'))
+    model = models.train_model(
+        model=model,
+        train=train_seq,
+        val=val_seq,
+        model_args=model_args,
+        f_epochs=args.f_epochs,
+        epochs=args.epochs,
+        cb_f=cb_f,
+        cb_e=cb_e)
+    model.save(os.path.join(MODEL_DIR, model_name + '.h5'))
     print('Model saved successfully')
+

@@ -5,62 +5,74 @@ import numpy as np
 import pandas as pd
 from keras.models import load_model
 from utils import TestSequence
+from glob import glob
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name')
-    parser.add_argument('--best', type=int, default=0)
-    parser.add_argument('--batch', type=int)
-    parser.add_argument('--tta', type=int, default=0)
+    parser.add_argument('-n', '--name', help='Name of the network')
+    parser.add_argument('-b', '--batch_size', type=int, default=16)
+    parser.add_argument('-f', '--folds', action='store_true', help='Average predictions from folded-train network')
+    parser.add_argument('-best', action='store_true', help='Use models which were the best on validation set')
+    parser.add_argument('-tta', action='store_true', help='Use TTA during evaluation')
     args = parser.parse_args()
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
     SUB_DIR = os.path.join(utils.ROOT_DIR, 'subs')
     SUB_PROB_DIR = os.path.join(SUB_DIR, 'probs')
 
-    if args.tta == 0:
-        sub_end = '.csv'
-    else:
+    if args.tta:
         sub_end = '-TTA.csv'
-
-    if args.best == 0:
-        MODEL_PATH = os.path.join(MODEL_DIR, 'model.h5')
-        SUB_PATH = os.path.join(SUB_DIR, args.name + sub_end)
-        SUB_PROB_PATH = os.path.join(SUB_PROB_DIR, args.name + sub_end)
     else:
-        MODEL_PATH = os.path.join(MODEL_DIR, 'model-best.h5')
-        SUB_PATH = os.path.join(SUB_DIR, args.name + '-best' + sub_end)
-        SUB_PROB_PATH = os.path.join(SUB_PROB_DIR, args.name + '-best' + sub_end)
+        sub_end = '.csv'
 
-    BATCH_SIZE = args.batch
     TEST_PARAMS = {
-        'batch_size': BATCH_SIZE,
-        'augment': 0
-    }
+        'batch_size': args.batch_size,
+        'augmentation': False}
     test_seq = TestSequence(TEST_PARAMS)
-    model = load_model(MODEL_PATH)
-    probs = model.predict_generator(
-        generator=test_seq,
-        steps=len(test_seq),
-        verbose=1
-    )
-    if args.tta != 0:
-        for aug_flag in range(1, 5):
-            test_seq.augment = aug_flag
-            probs += model.predict_generator(
-                generator=test_seq,
-                steps=len(test_seq),
-                verbose=1
-            )
-        probs /= 5
+
+    model_files = sorted(glob(os.path.join(MODEL_DIR, '*')))
+    if args.folds:
+        model_files = [file for file in model_files if file.startswith('fold')]
+        sub_end = '-folded' + sub_end
+    else:
+        model_files = [file for file in model_files if file.startswith('model')]
+    if args.best:
+        model_files = [file for file in model_files if file.endswith('best.h5')]
+        sub_end = '-best' + sub_end
+    else:
+        model_files = [file for file in model_files if not file.endswith('best.h5')]
+
+    SUB_PATH = os.path.join(SUB_DIR, args.name + sub_end)
+    SUB_PROB_PATH = os.path.join(SUB_PROB_DIR, args.name + sub_end)
+
+    print('Start prediction for models:')
+    for file in model_files:
+        print(file)
+    global_probs = []
+    for file in model_files:
+        model = load_model(file)
+        test_seq.augmentation = False
+        probs = model.predict_generator(
+            generator=test_seq,
+            steps=len(test_seq),
+            verbose=1)
+        if args.tta:
+            for aug_flag in range(1, 5):
+                test_seq.augment = aug_flag
+                probs += model.predict_generator(
+                    generator=test_seq,
+                    steps=len(test_seq),
+                    verbose=1)
+            probs /= 5
+        global_probs.append(probs)
+    probs = sum(global_probs) / len(global_probs)
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)
     labels = [utils.ID2LABEL[id_] for id_ in ids]
     data = {
         'fname': test_seq.files,
         'camera': labels,
-        'prob': probs_max
-    }
+        'prob': probs_max}
     sub = pd.DataFrame(data)
     sub.to_csv(SUB_PROB_PATH, index=False)
     print('Submission with probs created successfully')
