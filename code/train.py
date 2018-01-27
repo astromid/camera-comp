@@ -48,13 +48,15 @@ if __name__ == '__main__':
     if args.folds > 1:
         skf = StratifiedKFold(n_splits=args.folds, shuffle=True, random_state=args.seed)
         labels = [os.path.dirname(file) for file in all_train_files]
-        train_folded = []
-        val_folded = []
+        train_idxs = []
+        val_idxs = []
         for train_idx, val_idx in skf.split(all_train_files, labels):
-            train_folded.append(all_train_files[train_idx])
-            val_folded.append(all_train_files[val_idx])
-        train_files = train_folded[args.current_fold - 1]
-        val_files = val_folded[args.current_fold - 1]
+            train_idxs.append(train_idx)
+            val_idxs.append(val_idx)
+        train_idx = train_idxs[args.current_fold - 1]
+        val_idx = val_idxs[args.current_fold - 1]
+        train_files = [all_train_files[idx] for idx in train_idx]
+        val_files = [all_train_files[idx] for idx in val_idx]
         # need to redirect directory
         utils.VAL_DIR = utils.TRAIN_DIR
         model_name = f'fold{args.current_fold}'
