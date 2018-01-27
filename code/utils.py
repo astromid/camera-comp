@@ -72,7 +72,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
     def on_train_begin(self, logs=None):
         super().on_train_begin(logs)
-        self.start_lr = float(K.get_value(self.model.optimizer.lr))
+        self.start_lr = float(K.get_value(self.model.optimizer.lr)) / 10
 
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
@@ -81,7 +81,8 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.min_lr_counter += 1
         if self.min_lr_counter >= 2 * self.patience:
             K.set_value(self.model.optimizer.lr, self.start_lr)
-            self.patience = max(3, self.patience - 1)
+            self.min_lr /= 10
+            self.patience += 1
             self.cooldown = 0
             self.min_lr_counter = 0
             if self.verbose > 0:
