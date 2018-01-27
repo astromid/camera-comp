@@ -50,7 +50,8 @@ if __name__ == '__main__':
         labels = [os.path.dirname(file) for file in all_train_files]
         train_idxs = []
         val_idxs = []
-        for train_idx, val_idx in skf.split(all_train_files, labels):
+        # val & train idx reversed - train on one fold, evaluate on (n-1)
+        for val_idx, train_idx in skf.split(all_train_files, labels):
             train_idxs.append(train_idx)
             val_idxs.append(val_idx)
         train_idx = train_idxs[args.current_fold - 1]
