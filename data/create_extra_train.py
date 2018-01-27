@@ -26,14 +26,14 @@ for folder in os.listdir(URLS_DIR):
         good_filenames = sorted([filename[:-1] for filename in good_jpgs])
         urls = sorted([url[:-1] for url in urls_file])
         good_urls = []
-        for url in tqdm(urls, desc=f'Folder: {folder}'):
+        for url in urls:
             filename = url.split('/')[-1]
             if filename in good_filenames:
                 good_urls.append(url)
                 good_filenames.remove(filename)
         assert len(good_filenames) == 0
         total = len(good_urls)
-        print(f'Found {total} good urls in folder {folder}')
+        print(f'Found {total} good urls for {folder}')
         with tqdm(desc=f'Folder: {folder}', total=total) as pbar:
             with ThreadPool() as p:
                 args = list(zip(np.arange(total), good_urls, [folder] * total))
