@@ -1,6 +1,6 @@
 import utils
 from keras.models import Model
-from keras.layers import Dense, Dropout, Input, concatenate
+from keras.layers import Dense, Dropout, Input, Reshape, concatenate
 from keras.applications.resnet50 import ResNet50
 from keras.applications.densenet import DenseNet201
 
@@ -31,6 +31,7 @@ def densenet201():
         pooling='avg')
     manip_flags = Input(shape=(1,))
     x = base_model.output
+    x = Reshape((-1,))(x)
     x = concatenate([x, manip_flags])
     x = Dense(units=512, activation='relu')(x)
     x = Dropout(rate=0.3)(x)
