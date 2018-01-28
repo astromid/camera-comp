@@ -223,7 +223,11 @@ class TrainSequence(ImageSequence):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        h, w, ch = image.shape
+        # if image don't have 3rd channel
+        try:
+            h, w, ch = image.shape
+        except ValueError:
+            return None, None
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
@@ -254,7 +258,11 @@ class ValSequence(ImageSequence):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(VAL_DIR, label, filename))
-        h, w, ch = image.shape
+        # if image don't have 3rd channel
+        try:
+            h, w, ch = image.shape
+        except ValueError:
+            return None, None
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
