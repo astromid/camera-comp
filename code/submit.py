@@ -31,7 +31,7 @@ if __name__ == '__main__':
         'augmentation': False}
     test_seq = TestSequence(TEST_PARAMS)
 
-    model_files = sorted(glob(os.path.join(MODEL_DIR, '*.h5')))
+    model_files = sorted([os.path.basename(file) for file in glob(os.path.join(MODEL_DIR, '*.h5'))])
     if not args.all:
         if args.folds:
             model_files = [file for file in model_files if file.startswith('fold')]

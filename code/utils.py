@@ -86,7 +86,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.cooldown = 0
             self.min_lr_counter = 0
             if self.verbose > 0:
-                print('\nEpoch %05d: Cycle returning to learning rate %s.' % (epoch + 1, self.start_lr))
+                print('Epoch %05d: Cycle returning to learning rate %s.' % (epoch + 1, self.start_lr))
             self.cooldown_counter = self.cooldown
             self.wait = 0
 
