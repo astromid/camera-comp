@@ -228,6 +228,7 @@ class TrainSequence(ImageSequence):
             h, w, ch = image.shape
         except ValueError:
             return None, None
+        # some strange images with shape (_, _, 4)
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
@@ -263,6 +264,7 @@ class ValSequence(ImageSequence):
             h, w, ch = image.shape
         except ValueError:
             return None, None
+        # some strange images with shape (_, _, 4)
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
