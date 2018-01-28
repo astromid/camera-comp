@@ -62,7 +62,7 @@ if __name__ == '__main__':
             verbose=1)
         global_probs.append(probs)
         if args.tta:
-            for aug_flag in range(1, 5):
+            for aug_flag in range(1, 4):  # (1, 5)
                 test_seq.augment = aug_flag
                 probs = model.predict_generator(
                     generator=test_seq,
