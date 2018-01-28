@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch_size', type=int, default=16)
     parser.add_argument('-f', '--folds', action='store_true', help='Average predictions from folded-train network')
     parser.add_argument('-best', action='store_true', help='Use models which were the best on validation set')
+    parser.add_argument('-all', action='store_true', help='Use all snapshots in ensemble')
     parser.add_argument('-tta', action='store_true', help='Use TTA during evaluation')
     args = parser.parse_args()
 
@@ -30,22 +31,25 @@ if __name__ == '__main__':
         'augmentation': False}
     test_seq = TestSequence(TEST_PARAMS)
 
-    model_files = sorted(glob(os.path.join(MODEL_DIR, '*')))
-    if args.folds:
-        model_files = [file for file in model_files if file.startswith('fold')]
-        sub_end = '-folded' + sub_end
+    model_files = sorted(glob(os.path.join(MODEL_DIR, '*.h5')))
+    if not args.all:
+        if args.folds:
+            model_files = [file for file in model_files if file.startswith('fold')]
+            sub_end = '-folded' + sub_end
+        else:
+            model_files = [file for file in model_files if file.startswith('model')]
+        if args.best:
+            model_files = [file for file in model_files if file.endswith('best.h5')]
+            sub_end = '-best' + sub_end
+        else:
+            model_files = [file for file in model_files if not file.endswith('best.h5')]
     else:
-        model_files = [file for file in model_files if file.startswith('model')]
-    if args.best:
-        model_files = [file for file in model_files if file.endswith('best.h5')]
-        sub_end = '-best' + sub_end
-    else:
-        model_files = [file for file in model_files if not file.endswith('best.h5')]
+        sub_end = '-ALL' + sub_end
 
     SUB_PATH = os.path.join(SUB_DIR, args.name + sub_end)
     SUB_PROB_PATH = os.path.join(SUB_PROB_DIR, args.name + sub_end)
 
-    print('Start prediction for models:')
+    print('Models in ensemble:')
     for file in model_files:
         print(file)
     global_probs = []
