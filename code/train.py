@@ -97,7 +97,7 @@ if __name__ == '__main__':
     tqdm_cb = TQDMCallback(leave_inner=False)
     cb_f = [log_cb, tqdm_cb]
     cb_e = [check_cb, cycle_cb, tb_cb, log_cb, tqdm_cb]
-    model = models.resnet50()
+    model = models.densenet201()
     model = models.train_model(
         model=model,
         train=train_seq,

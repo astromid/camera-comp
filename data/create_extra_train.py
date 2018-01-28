@@ -31,7 +31,11 @@ for folder in os.listdir(URLS_DIR):
             if filename in good_filenames:
                 good_urls.append(url)
                 good_filenames.remove(filename)
-        assert len(good_filenames) == 0
+        try:
+            assert len(good_filenames) == 0
+        except AssertionError:
+            print(good_filenames)
+            raise AssertionError
         total = len(good_urls)
         print(f'Found {total} good urls for {folder}')
         with tqdm(desc=f'Folder: {folder}', total=total) as pbar:
