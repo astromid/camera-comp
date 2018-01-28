@@ -21,7 +21,7 @@ def download(args_):
 
 
 for folder in os.listdir(URLS_DIR):
-    with open(os.path.join(URLS_DIR, folder, 'urls_final')) as urls_file, \
+    with open(os.path.join(URLS_DIR, folder, 'urls')) as urls_file, \
             open(os.path.join(URLS_DIR, folder, 'good_jpgs')) as good_jpgs:
         good_filenames = sorted([filename[:-1] for filename in good_jpgs])
         urls = sorted([url[:-1] for url in urls_file])

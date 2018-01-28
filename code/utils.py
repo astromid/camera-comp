@@ -86,7 +86,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.cooldown = 0
             self.min_lr_counter = 0
             if self.verbose > 0:
-                print('\nEpoch %05d: Cycle returning to initial learning rate %s.' % (epoch + 1, self.start_lr))
+                print('\nEpoch %05d: Cycle returning to learning rate %s.' % (epoch + 1, self.start_lr))
             self.cooldown_counter = self.cooldown
             self.wait = 0
 
@@ -223,8 +223,8 @@ class TrainSequence(ImageSequence):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
-        h, w, _ = image.shape
-        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE:
+        h, w, ch = image.shape
+        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
             return image, label
@@ -254,8 +254,8 @@ class ValSequence(ImageSequence):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(VAL_DIR, label, filename))
-        h, w, _ = image.shape
-        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE:
+        h, w, ch = image.shape
+        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
             return ImageSequence._crop_image((image, 2 * CROP_SIDE, True)), label
