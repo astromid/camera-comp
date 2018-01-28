@@ -60,15 +60,15 @@ if __name__ == '__main__':
             generator=test_seq,
             steps=len(test_seq),
             verbose=1)
+        global_probs.append(probs)
         if args.tta:
             for aug_flag in range(1, 5):
                 test_seq.augment = aug_flag
-                probs += model.predict_generator(
+                probs = model.predict_generator(
                     generator=test_seq,
                     steps=len(test_seq),
                     verbose=1)
-            probs /= 5
-        global_probs.append(probs)
+                global_probs.append(probs)
     probs = sum(global_probs) / len(global_probs)
     ids = np.argmax(probs, axis=1)
     probs_max = np.max(probs, axis=1)
