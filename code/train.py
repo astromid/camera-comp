@@ -26,6 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('-x', '--extra', action='store_true', help='Enables extra train data')
     parser.add_argument('-bal', '--balance', action='store_true', help='Enables sample balancing')
     parser.add_argument('-aug', '--augmentation', action='store_true', help='Enables augmentation during training')
+    parser.add_argument('-vl', '--val_length', type=int, default=0, help='Use random subsample of validation set')
     args = parser.parse_args()
 
     if args.extra and args.folds < 3:
@@ -33,10 +34,11 @@ if __name__ == '__main__':
         raise MemoryError
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
-    TRAIN_PARAMS = {
+    TRAIN_CONFIG = {
         'batch_size': args.batch_size,
         'balance': args.balance,
-        'augmentation': args.augmentation}
+        'augmentation': args.augmentation,
+        'val_length': args.val_length}
     os.makedirs(MODEL_DIR, exist_ok=True)
     all_train_files = sorted([os.path.relpath(file, utils.TRAIN_DIR) for file in
                               glob(os.path.join(utils.TRAIN_DIR, '*', '*'))])
@@ -67,8 +69,8 @@ if __name__ == '__main__':
         val_files = extra_val_files
         model_name = 'model'
 
-    train_seq = TrainSequence(train_files, TRAIN_PARAMS)
-    val_seq = ValSequence(val_files, TRAIN_PARAMS)
+    train_seq = TrainSequence(train_files, TRAIN_CONFIG)
+    val_seq = ValSequence(val_files, TRAIN_CONFIG)
 
     model_args = {
         'optimizer': Adam(lr=args.learning_rate),

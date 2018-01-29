@@ -243,7 +243,23 @@ class ValSequence(ImageSequence):
         super().__init__(params)
         self.center = True
         self.balance = params['balance']
+        self.val_len = params['val_length']
         self.load_images(files)
+        # use subsample of entire val set and shuffle it
+        if self.val_len and self.val_len < self.len_:
+            self.len_ = self.val_len
+            self.on_epoch_end()
+            print(f'Using random validation subset of length {self.len_}')
+        else:
+            print(f'Using entire validation set of length {self.len_}')
+
+    def on_epoch_end(self):
+        if self.val_len:
+            data = list(zip(self.images, self.labels))
+            np.random.shuffle(data)
+            self.images, self.labels = zip(*data)
+            self.images = list(self.images)
+            self.labels = list(self.labels)
 
     def load_images(self, files):
         with tqdm(desc='Loading validation files', total=len(files)) as pbar:
