@@ -5,42 +5,45 @@ from keras.applications.resnet50 import ResNet50
 from keras.applications.densenet import DenseNet201
 
 
-def resnet50():
+def _inputs():
     image = Input(shape=(utils.CROP_SIDE, utils.CROP_SIDE, 3))
     manip_flag = Input(shape=(1,))
+    return image, manip_flag
+
+
+def _top(x, manip_flag):
+    x = Reshape((-1,))(x)
+    x = concatenate([x, manip_flag])
+    x = Dense(units=512, activation='relu')(x)
+    x = Dropout(rate=0.3)(x)
+    x = Dense(units=128, activation='relu')(x)
+    x = Dropout(rate=0.3)(x)
+    out = Dense(units=utils.N_CLASS, activation='softmax')(x)
+    return out
+
+
+def resnet50():
+    image, manip_flag = _inputs()
     base_model = ResNet50(
         include_top=False,
         weights='imagenet',
         pooling='avg')
     x = base_model(image)
-    x = Reshape((-1,))(x)
-    x = concatenate([x, manip_flag])
-    x = Dense(units=512, activation='relu')(x)
-    x = Dropout(rate=0.3)(x)
-    x = Dense(units=128, activation='relu')(x)
-    x = Dropout(rate=0.3)(x)
-    out = Dense(units=utils.N_CLASS, activation='softmax')(x)
+    out = _top(x, manip_flag)
     model = Model(inputs=(image, manip_flag), outputs=out)
-    for layer in base_model.layers:
+    for layer in model.get_layer('resnet50').layers:
         layer.trainable = False
     return model
 
 
 def densenet201():
-    image = Input(shape=(utils.CROP_SIDE, utils.CROP_SIDE, 3))
-    manip_flag = Input(shape=(1,))
+    image, manip_flag = _inputs()
     base_model = DenseNet201(
         include_top=False,
         weights='imagenet',
         pooling='avg')
     x = base_model(image)
-    x = Reshape((-1,))(x)
-    x = concatenate([x, manip_flag])
-    x = Dense(units=512, activation='relu')(x)
-    x = Dropout(rate=0.3)(x)
-    x = Dense(units=128, activation='relu')(x)
-    x = Dropout(rate=0.3)(x)
-    out = Dense(units=utils.N_CLASS, activation='softmax')(x)
+    out = _top(x, manip_flag)
     model = Model(inputs=(image, manip_flag), outputs=out)
     for layer in model.get_layer('densenet201').layers:
         layer.trainable = False
