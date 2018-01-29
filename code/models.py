@@ -3,6 +3,7 @@ from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Reshape, concatenate
 from keras.applications.resnet50 import ResNet50
 from keras.applications.densenet import DenseNet201
+from keras.applications.xception import Xception
 
 
 def _inputs():
@@ -46,6 +47,20 @@ def densenet201():
     out = _top(x, manip_flag)
     model = Model(inputs=(image, manip_flag), outputs=out)
     for layer in model.get_layer('densenet201').layers:
+        layer.trainable = False
+    return model
+
+
+def xception():
+    image, manip_flag = _inputs()
+    base_model = Xception(
+        include_top=False,
+        weights='imagenet',
+        pooling='avg')
+    x = base_model(image)
+    out = _top(x, manip_flag)
+    model = Model(inputs=(image, manip_flag), outputs=out)
+    for layer in model.get_layer('xception').layers:
         layer.trainable = False
     return model
 
