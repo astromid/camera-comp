@@ -44,7 +44,7 @@ if __name__ == '__main__':
                               glob(os.path.join(utils.TRAIN_DIR, '*', '*'))])
     if not args.extra:
         # all filenames in original dataset start with '('
-        all_train_files = [file for file in all_train_files if file.startswith('(')]
+        all_train_files = [file for file in all_train_files if os.path.basename(file).startswith('(')]
     extra_val_files = sorted([os.path.relpath(file, utils.VAL_DIR) for file in
                               glob(os.path.join(utils.VAL_DIR, '*', '*'))])
     if args.folds > 1:
