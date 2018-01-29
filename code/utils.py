@@ -200,7 +200,7 @@ class ImageSequence(Sequence):
         if np.random.rand() < 0.5:  # 0.66
             # axis_ = np.random.randint(0, 2)
             # aug_image = np.flip(aug_image, axis_)
-            aug_img = np.rot90(image, 1, (0, 1))
+            aug_image = np.rot90(aug_image, 1, (0, 1))
         if np.random.rand() < 0.5:  # 0.66
             # k_size = np.random.choice([3, 5])
             k_size = 3
@@ -353,7 +353,7 @@ class TestSequence(ImageSequence):
         image, aug_flag = args
         if aug_flag == 1:
             # return np.flip(image, 0)
-            return np.rot90(image, 1, (0,1))
+            return np.rot90(image, 1, (0, 1))
         # elif aug_flag == 2:
         #     return np.flip(image, 1)
         elif aug_flag == 2:  # 3
@@ -361,6 +361,5 @@ class TestSequence(ImageSequence):
         # elif aug_flag == 4:
         #    return cv2.GaussianBlur(image, (5, 5), 0)
         elif aug_flag == 3:
-            aug_image = np.rot90(image, 1, (0,1))
+            aug_image = np.rot90(image, 1, (0, 1))
             return cv2.GaussianBlur(aug_image, (3, 3), 0)
-
