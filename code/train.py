@@ -15,7 +15,7 @@ from sklearn.model_selection import StratifiedKFold
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--name', help='Name of the network')
+    parser.add_argument('-n', '--name', help='Name of the network in format {base_clf}-{number}')
     parser.add_argument('-e', '--epochs', type=int, help='Total number of epochs to train')
     parser.add_argument('-b', '--batch_size', type=int, default=16)
     parser.add_argument('-fe', '--f_epochs', type=int, default=1, help='Number of epochs w/ frozen base model')
@@ -38,7 +38,8 @@ if __name__ == '__main__':
         'batch_size': args.batch_size,
         'balance': args.balance,
         'augmentation': args.augmentation,
-        'val_length': args.val_length}
+        'val_length': args.val_length,
+        'clf_name': args.name.split('-')[0]}
     os.makedirs(MODEL_DIR, exist_ok=True)
     all_train_files = sorted([os.path.relpath(file, utils.TRAIN_DIR) for file in
                               glob(os.path.join(utils.TRAIN_DIR, '*', '*'))])

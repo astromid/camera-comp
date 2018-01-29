@@ -9,7 +9,7 @@ from glob import glob
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--name', help='Name of the network')
+    parser.add_argument('-n', '--name', help='Name of the network in format {base_clf}-{number}')
     parser.add_argument('-b', '--batch_size', type=int, default=16)
     parser.add_argument('-f', '--folds', action='store_true', help='Average predictions from folded-train network')
     parser.add_argument('-best', action='store_true', help='Use models which were the best on validation set')
@@ -26,10 +26,11 @@ if __name__ == '__main__':
     else:
         sub_end = '.csv'
 
-    TEST_PARAMS = {
+    TEST_CONFIG = {
         'batch_size': args.batch_size,
-        'augmentation': False}
-    test_seq = TestSequence(TEST_PARAMS)
+        'augmentation': False,
+        'clf_name': args.name.split('-')[0]}
+    test_seq = TestSequence(TEST_CONFIG)
 
     model_files = sorted(glob(os.path.join(MODEL_DIR, '*.h5')))
     if not args.all:

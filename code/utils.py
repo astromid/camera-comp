@@ -11,6 +11,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 from multiprocessing.pool import ThreadPool
 from skimage.exposure import adjust_gamma
 from numba import jit
+from keras.applications import *
 
 LABELS = [
     'HTC-1-M7',
@@ -31,6 +32,13 @@ TEST_DIR = os.path.join(ROOT_DIR, 'data', 'test')
 ID2LABEL = {i: label for i, label in enumerate(LABELS)}
 LABEL2ID = {label: i for i, label in ID2LABEL.items()}
 CROP_SIDE = 512
+CLF2MODULE = {
+    'densenet40': 'densenet',
+    'densenet121': 'densenet',
+    'densenet161': 'densenet',
+    'densenet201': 'densenet',
+    'resnet50': 'resnet50',
+    'xception': 'xception'}
 
 # change built-in print with tqdm_print
 old_print = print
@@ -101,6 +109,14 @@ class ImageSequence(Sequence):
         self.balance = None
         self.batch_size = params['batch_size']
         self.augmentation = params['augmentation']
+        self.clf_name = params['clf_name']
+        if self.clf_name in CLF2MODULE:
+            print(f'Using preprocess function for {self.clf_name}')
+            module_name = CLF2MODULE[self.clf_name]
+            self._preprocess_batch = getattr(globals()[module_name], 'preprocess_input')
+        else:
+            print('Can\'t found suitable preprocess function')
+            raise NameError
         self.p = ThreadPool()
 
     def __len__(self):
@@ -127,7 +143,7 @@ class ImageSequence(Sequence):
             ohe = np.zeros(N_CLASS)
             ohe[id_] = 1
             labels_batch.append(ohe)
-        images_batch = np.array(images_batch).astype(np.float32)
+        images_batch = self._preprocess_batch(np.array(images_batch).astype(np.float32))
         manip_flags = np.array(manip_flags)
         labels_batch = np.array(labels_batch)
         if self.balance:
@@ -308,7 +324,7 @@ class TestSequence(ImageSequence):
                 images_batch.append(image)
         else:
             images_batch = x
-        images_batch = np.array(images_batch).astype(np.float32)
+        images_batch = self._preprocess_batch(np.array(images_batch).astype(np.float32))
         manip_flags = np.array(y)
         return [images_batch, manip_flags]
 
