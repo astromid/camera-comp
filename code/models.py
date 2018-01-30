@@ -1,9 +1,16 @@
 import utils
-from keras.models import Model
-from keras.layers import Dense, Dropout, Input, Reshape, concatenate
 from keras.applications.resnet50 import ResNet50
 from keras.applications.densenet import DenseNet201
 from keras.applications.xception import Xception
+from keras.models import Model
+from keras.layers import Dense, Dropout, Input, Reshape, concatenate
+from keras.layers import Conv2D
+from keras.layers import Activation, Flatten
+from keras.layers import Multiply, Add
+from keras.layers import MaxPooling2D
+from keras.layers import GlobalAveragePooling2D
+from keras.layers import Dropout
+# from keras_contrib.layers import BatchRenormalization
 
 
 def _inputs():
