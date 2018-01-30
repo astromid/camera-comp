@@ -38,12 +38,13 @@ if __name__ == '__main__':
         raise MemoryError
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
+    CLF_NAME = args.name.split('-')[0]
     TRAIN_CONFIG = {
         'batch_size': args.batch_size,
         'balance': args.balance,
         'augmentation': args.augmentation,
         'val_length': args.val_length,
-        'clf_name': args.name.split('-')[0]}
+        'clf_name': CLF_NAME}
     os.makedirs(MODEL_DIR, exist_ok=True)
     all_train_files = sorted([os.path.relpath(file, utils.TRAIN_DIR) for file in
                               glob(os.path.join(utils.TRAIN_DIR, '*', '*'))])
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     # try to handle gcp instance stopping
     def sigterm_handler(signal, frame):
         model.save(MODEL_PATH + '.h5')
-        print('Got SIGTERM, model saved successfully')
+        print('Got SIGTERM (maybe GCP instance is going to shutdown), model saved successfully')
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, sigterm_handler)
@@ -105,7 +106,7 @@ if __name__ == '__main__':
         filepath=MODEL_PATH,
         monitor=monitor,
         factor=0.3,
-        patience=5,
+        patience=6,
         verbose=1,
         epsilon=0.0001,
         min_lr=1e-8)
@@ -127,15 +128,32 @@ if __name__ == '__main__':
             validation_steps=len(val_seq),
             initial_epoch=args.load)
     else:
-        model = models.densenet201()
-        model = models.train_model(
-            model=model,
-            train=train_seq,
-            val=val_seq,
-            model_args=model_args,
-            f_epochs=args.f_epochs,
-            epochs=args.epochs,
-            cb_f=cb_f,
-            cb_e=cb_e)
+        if CLF_NAME in utils.CLF2MODULE:
+            model = models.pretrained_model(CLF_NAME)
+            model = models.train_pretrained_model(
+                clf_name=CLF_NAME,
+                model=model,
+                train=train_seq,
+                val=val_seq,
+                model_args=model_args,
+                f_epochs=args.f_epochs,
+                epochs=args.epochs,
+                cb_f=cb_f,
+                cb_e=cb_e)
+        elif CLF_NAME in utils.NONPRETRAINED_NETS:
+            model = models.SeResNet3().model
+            model.compile(**model_args)
+            model.summary()
+            model.fit_generator(
+                generator=train_seq,
+                steps_per_epoch=len(train_seq),
+                epochs=args.epochs,
+                verbose=0,
+                callbacks=cb_e,
+                validation_data=val_seq,
+                validation_steps=len(val_seq))
+        else:
+            print('Can\'t found suitable model in models.py')
+            raise NameError
     model.save(MODEL_PATH + '.h5')
     print('Model saved successfully')

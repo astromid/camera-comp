@@ -39,6 +39,13 @@ CLF2MODULE = {
     'densenet201': 'densenet',
     'resnet50': 'resnet50',
     'xception': 'xception'}
+CLF2CLASS = {
+    'densenet40': 'DenseNet40',
+    'densenet121': 'DenseNet121',
+    'densenet161': 'DenseNet161',
+    'densenet201': 'DenseNet201',
+    'resnet50': 'ResNet50',
+    'xception': 'Xception'}
 NONPRETRAINED_NETS = ['seresnet']
 
 # change built-in print with tqdm_print

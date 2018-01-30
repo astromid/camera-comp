@@ -1,7 +1,5 @@
 import utils
-from keras.applications.resnet50 import ResNet50
-from keras.applications.densenet import DenseNet201
-from keras.applications.xception import Xception
+from keras.applications import *
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Reshape, concatenate
 from keras.layers import Conv2D
@@ -29,52 +27,29 @@ def _top(x, manip_flag):
     return out
 
 
-def resnet50():
+def pretrained_model(clf_name):
     image, manip_flag = _inputs()
-    base_model = ResNet50(
+    module_name = utils.CLF2MODULE[clf_name]
+    class_name = utils.CLF2CLASS[clf_name]
+    base_model_class = getattr(globals()[module_name], class_name)
+    print(f'Using {class_name} as base model')
+    base_model = base_model_class(
         include_top=False,
         weights='imagenet',
         pooling='avg')
     x = base_model(image)
     out = _top(x, manip_flag)
     model = Model(inputs=(image, manip_flag), outputs=out)
-    for layer in model.get_layer('resnet50').layers:
+    for layer in model.get_layer(clf_name).layers:
         layer.trainable = False
     return model
 
 
-def densenet201():
-    image, manip_flag = _inputs()
-    base_model = DenseNet201(
-        include_top=False,
-        weights='imagenet',
-        pooling='avg')
-    x = base_model(image)
-    out = _top(x, manip_flag)
-    model = Model(inputs=(image, manip_flag), outputs=out)
-    for layer in model.get_layer('densenet201').layers:
-        layer.trainable = False
-    return model
-
-
-def xception():
-    image, manip_flag = _inputs()
-    base_model = Xception(
-        include_top=False,
-        weights='imagenet',
-        pooling='avg')
-    x = base_model(image)
-    out = _top(x, manip_flag)
-    model = Model(inputs=(image, manip_flag), outputs=out)
-    for layer in model.get_layer('xception').layers:
-        layer.trainable = False
-    return model
-
-
-def train_model(model, train, val, model_args, f_epochs, epochs, cb_f, cb_e):
+def train_pretrained_model(clf_name, model, train, val, model_args, f_epochs, epochs, cb_f, cb_e):
     if f_epochs != 0:
         # train with frozen pretrained block
         model.compile(**model_args)
+        model.summary()
         model.fit_generator(
             generator=train,
             steps_per_epoch=len(train),
@@ -85,9 +60,10 @@ def train_model(model, train, val, model_args, f_epochs, epochs, cb_f, cb_e):
             validation_steps=len(val))
     if epochs > f_epochs:
         # defrost pretrained block
-        for layer in model.get_layer('densenet201').layers:
+        for layer in model.get_layer(clf_name).layers:
             layer.trainable = True
         model.compile(**model_args)
+        model.summary()
         model.fit_generator(
             generator=train,
             steps_per_epoch=len(train),
