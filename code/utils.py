@@ -73,10 +73,12 @@ class LoggerCallback(Callback):
 
 class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, filepath, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.start_lr = None
         self.min_lr_counter = 0
+        self.cycle_counter = 0
+        self.filepath = filepath
 
     def on_train_begin(self, logs=None):
         super().on_train_begin(logs)
@@ -93,8 +95,11 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
             self.patience += 1
             self.cooldown = 0
             self.min_lr_counter = 0
+            self.cycle_counter += 1
+            self.model.save(self.filepath + f'-cycle{self.cycle_counter}.h5')
             if self.verbose > 0:
                 print('Epoch %05d: Cycle returning to learning rate %s.' % (epoch + 1, self.start_lr))
+                print('Epoch %05d: Model snapshot successfully saved' % (epoch + 1))
             self.cooldown_counter = self.cooldown
             self.wait = 0
 
@@ -261,7 +266,7 @@ class ValSequence(ImageSequence):
         self.balance = params['balance']
         self.val_len = params['val_length']
         self.load_images(files)
-        # use subsample of entire val set and shuffle it
+        # use subsample of entire validation set and shuffle it
         if self.val_len and self.val_len < self.len_:
             self.len_ = self.val_len
             self.on_epoch_end()

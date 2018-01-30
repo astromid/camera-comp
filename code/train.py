@@ -1,7 +1,9 @@
 import os
+import sys
 import argparse
 import models
 import utils
+import signal
 from glob import glob
 from utils import TrainSequence, ValSequence
 from keras.callbacks import ModelCheckpoint
@@ -9,6 +11,7 @@ from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
 from keras.losses import binary_crossentropy
 from keras.metrics import categorical_accuracy
+from keras.models import load_model
 from utils import LoggerCallback, CycleReduceLROnPlateau
 from keras_tqdm import TQDMCallback
 from sklearn.model_selection import StratifiedKFold
@@ -18,6 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--name', help='Name of the network in format {base_clf}-{number}')
     parser.add_argument('-e', '--epochs', type=int, help='Total number of epochs to train')
     parser.add_argument('-b', '--batch_size', type=int, default=16)
+    parser.add_argument('-l', '--load', type=int, default=0, help='Load model to continue training from a given epoch')
     parser.add_argument('-fe', '--f_epochs', type=int, default=1, help='Number of epochs w/ frozen base model')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4, help='Initial learning rate')
     parser.add_argument('-f', '--folds', type=int, default=1, help='Number of folds')
@@ -70,9 +74,18 @@ if __name__ == '__main__':
         val_files = extra_val_files
         model_name = 'model'
 
+    MODEL_PATH = os.path.join(MODEL_DIR, model_name)
+
+    # try to handle gcp instance stopping
+    def sigterm_handler(signal, frame):
+        model.save(MODEL_PATH + '.h5')
+        print('Got SIGTERM, model saved successfully')
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
     train_seq = TrainSequence(train_files, TRAIN_CONFIG)
     val_seq = ValSequence(val_files, TRAIN_CONFIG)
-
     model_args = {
         'optimizer': Adam(lr=args.learning_rate),
         'loss': binary_crossentropy}
@@ -84,11 +97,12 @@ if __name__ == '__main__':
         model_args['weighted_metrics'] = [categorical_accuracy]
 
     check_cb = ModelCheckpoint(
-        filepath=os.path.join(MODEL_DIR, model_name + '-best.h5'),
+        filepath=MODEL_PATH + '-best.h5',
         monitor=monitor,
         verbose=1,
         save_best_only=True)
     cycle_cb = CycleReduceLROnPlateau(
+        filepath=MODEL_PATH,
         monitor=monitor,
         factor=0.3,
         patience=5,
@@ -100,16 +114,28 @@ if __name__ == '__main__':
     tqdm_cb = TQDMCallback(leave_inner=False)
     cb_f = [log_cb, tqdm_cb]
     cb_e = [check_cb, cycle_cb, tb_cb, log_cb, tqdm_cb]
-    model = models.densenet201()
-    model = models.train_model(
-        model=model,
-        train=train_seq,
-        val=val_seq,
-        model_args=model_args,
-        f_epochs=args.f_epochs,
-        epochs=args.epochs,
-        cb_f=cb_f,
-        cb_e=cb_e)
-    model.save(os.path.join(MODEL_DIR, model_name + '.h5'))
+    if args.load:
+        model = load_model(MODEL_PATH + '.h5')
+        print(f'Successfully loaded model, continue training from epoch {args.load}')
+        model.fit_generator(
+            generator=train_seq,
+            steps_per_epoch=len(train_seq),
+            epochs=args.epochs,
+            verbose=0,
+            callbacks=cb_e,
+            validation_data=val_seq,
+            validation_steps=len(val_seq),
+            initial_epoch=args.load)
+    else:
+        model = models.densenet201()
+        model = models.train_model(
+            model=model,
+            train=train_seq,
+            val=val_seq,
+            model_args=model_args,
+            f_epochs=args.f_epochs,
+            epochs=args.epochs,
+            cb_f=cb_f,
+            cb_e=cb_e)
+    model.save(MODEL_PATH + '.h5')
     print('Model saved successfully')
-
