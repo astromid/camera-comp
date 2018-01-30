@@ -5,12 +5,11 @@ from keras.applications.xception import Xception
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input, Reshape, concatenate
 from keras.layers import Conv2D
-from keras.layers import Activation, Flatten
+from keras.layers import Activation
 from keras.layers import Multiply, Add
 from keras.layers import MaxPooling2D
 from keras.layers import GlobalAveragePooling2D
-from keras.layers import Dropout
-# from keras_contrib.layers import BatchRenormalization
+from keras_contrib.layers import BatchRenormalization
 
 
 def _inputs():
@@ -99,3 +98,69 @@ def train_model(model, train, val, model_args, f_epochs, epochs, cb_f, cb_e):
             validation_steps=len(val),
             initial_epoch=f_epochs)
     return model
+
+
+class SeResNet3:
+
+    def __init__(self):
+        image, manip_flag = _inputs()
+        x = BatchRenormalization()(image)
+
+        x = Conv2D(filters=16, kernel_size=(3, 3), padding='same')(x)
+        x = BatchRenormalization()(x)
+        x = Activation(activation='relu')(x)
+        x = self.resblock(z=x, n_in=16, n_out=16)
+        x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+        x = Dropout(rate=0.1)(x)
+
+        x = Conv2D(filters=32, kernel_size=(3, 3), padding='same')(x)
+        x = BatchRenormalization()(x)
+        x = Activation(activation='relu')(x)
+        x = self.resblock(z=x, n_in=32, n_out=32)
+        x = self.resblock(z=x, n_in=32, n_out=32)
+        x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+        x = Dropout(rate=0.2)(x)
+
+        x = Conv2D(filters=64, kernel_size=(3, 3), padding='same')(x)
+        x = BatchRenormalization()(x)
+        x = Activation(activation='relu')(x)
+        x = self.resblock(z=x, n_in=64, n_out=64)
+        x = self.resblock(z=x, n_in=64, n_out=64)
+        x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+        x = Dropout(rate=0.2)(x)
+
+        x = Conv2D(filters=128, kernel_size=(3, 3), padding='same')(x)
+        x = BatchRenormalization()(x)
+        x = Activation(activation='relu')(x)
+        x = self.resblock(z=x, n_in=128, n_out=128)
+        x = self.resblock(z=x, n_in=128, n_out=128)
+        x = Dropout(rate=0.2)(x)
+
+        x = Conv2D(filters=256, kernel_size=(3, 3), padding='same')(x)
+        x = BatchRenormalization()(x)
+        x = Activation(activation='relu')(x)
+        x = GlobalAveragePooling2D()(x)
+
+        x = Dense(units=256, activation='relu')(x)
+        x = Dropout(rate=0.2)(x)
+        out = Dense(units=utils.N_CLASS, activation='softmax')(x)
+
+        model = Model(inputs=(image, manip_flag), outputs=out)
+        self.model = model
+
+    @staticmethod
+    def scale(z, n, red=16):
+        x = Conv2D(filters=red, kernel_size=(1, 1), activation='relu')(z)
+        x = Conv2D(filters=n, kernel_size=(1, 1))(x)
+        return Activation(activation='sigmoid')(x)
+
+    def resblock(self, z, n_in, n_out):
+        x = Conv2D(n_in, (3, 3), padding='same')(z)
+        x = BatchRenormalization()(x)
+        x = Activation(activation='relu')(x)
+        x = Conv2D(n_out, (3, 3), padding='same')(x)
+        x = BatchRenormalization()(x)
+        scale = self.scale(x, n_out)
+        x = Multiply()([scale, x])
+        x = Add()([z, x])
+        return Activation(activation='relu')(x)

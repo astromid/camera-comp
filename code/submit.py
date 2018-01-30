@@ -6,6 +6,7 @@ import pandas as pd
 from keras.models import load_model
 from utils import TestSequence
 from glob import glob
+from keras_contrib.layers import BatchRenormalization
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

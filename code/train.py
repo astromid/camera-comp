@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epochs', type=int, help='Total number of epochs to train')
     parser.add_argument('-b', '--batch_size', type=int, default=16)
     parser.add_argument('-l', '--load', type=int, default=0, help='Load model to continue training from a given epoch')
-    parser.add_argument('-fe', '--f_epochs', type=int, default=1, help='Number of epochs w/ frozen base model')
+    parser.add_argument('-fe', '--f_epochs', type=int, default=0, help='Number of epochs w/ frozen base model')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4, help='Initial learning rate')
     parser.add_argument('-f', '--folds', type=int, default=1, help='Number of folds')
     parser.add_argument('-cf', '--current_fold', type=int, default=1, help='Which fold is used for training')

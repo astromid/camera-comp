@@ -39,6 +39,7 @@ CLF2MODULE = {
     'densenet201': 'densenet',
     'resnet50': 'resnet50',
     'xception': 'xception'}
+NONPRETRAINED_NETS = ['seresnet']
 
 # change built-in print with tqdm_print
 old_print = print
@@ -82,7 +83,7 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
     def on_train_begin(self, logs=None):
         super().on_train_begin(logs)
-        self.start_lr = float(K.get_value(self.model.optimizer.lr)) / 10
+        self.start_lr = float(K.get_value(self.model.optimizer.lr)) / 5
 
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
@@ -119,6 +120,9 @@ class ImageSequence(Sequence):
             print(f'Using preprocess function for {self.clf_name}')
             module_name = CLF2MODULE[self.clf_name]
             self._preprocess_batch = getattr(globals()[module_name], 'preprocess_input')
+        elif self.clf_name in NONPRETRAINED_NETS:
+            print('Non-pretrained model found, using identity preprocess function')
+            self._preprocess_batch = lambda x: x
         else:
             print('Can\'t found suitable preprocess function')
             raise NameError
@@ -257,6 +261,7 @@ class TrainSequence(ImageSequence):
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
+            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image, label
 
 
@@ -311,6 +316,7 @@ class ValSequence(ImageSequence):
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
+            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return ImageSequence._crop_image((image, 2 * CROP_SIDE, True)), label
 
 
@@ -354,6 +360,7 @@ class TestSequence(ImageSequence):
     def _load_image(file):
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TEST_DIR, filename))
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image, filename
 
     @staticmethod
