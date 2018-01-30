@@ -246,6 +246,7 @@ class TrainSequence(ImageSequence):
         print(f'Successfully loaded {self.len_} train images')
 
     @staticmethod
+    @jit
     def _load_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
@@ -301,6 +302,7 @@ class ValSequence(ImageSequence):
         print(f'Successfully loaded {self.len_} validation images')
 
     @staticmethod
+    @jit
     def _load_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
@@ -357,6 +359,7 @@ class TestSequence(ImageSequence):
                 pbar.update()
 
     @staticmethod
+    @jit
     def _load_image(file):
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TEST_DIR, filename))
