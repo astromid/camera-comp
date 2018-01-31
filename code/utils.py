@@ -212,16 +212,12 @@ class ImageSequence(Sequence):
     @staticmethod
     @jit
     def _augment_image(image):
-        aug_image = image
-        if np.random.rand() < 0.5:  # 0.66
-            # axis_ = np.random.randint(0, 2)
-            # aug_image = np.flip(aug_image, axis_)
-            aug_image = np.rot90(aug_image, 1, (0, 1))
-        if np.random.rand() < 0.5:  # 0.66
-            # k_size = np.random.choice([3, 5])
-            k_size = 3
-            aug_image = cv2.GaussianBlur(aug_image, (k_size, k_size), 0)
-        return aug_image
+        for _ in range(4):
+            if np.random.rand() < 0.5:
+                image = np.rot90(image, 1, (0, 1))
+        if np.random.rand() < 0.5:
+            image = np.flip(image, 0)
+        return image
 
 
 class TrainSequence(ImageSequence):
@@ -268,7 +264,7 @@ class TrainSequence(ImageSequence):
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
-            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image, label
 
 
@@ -323,7 +319,7 @@ class ValSequence(ImageSequence):
         if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
             return None, None
         else:
-            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return ImageSequence._crop_image((image, 2 * CROP_SIDE, True)), label
 
 
@@ -367,22 +363,18 @@ class TestSequence(ImageSequence):
     def _load_image(file):
         filename = os.path.basename(file)
         image = cv2.imread(os.path.join(TEST_DIR, filename))
-        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image, filename
 
     @staticmethod
     @jit
     def _augment_image(args):
         image, aug_flag = args
-        if aug_flag == 1:
-            # return np.flip(image, 0)
-            return np.rot90(image, 1, (0, 1))
-        # elif aug_flag == 2:
-        #     return np.flip(image, 1)
-        elif aug_flag == 2:  # 3
-            return cv2.GaussianBlur(image, (3, 3), 0)
-        # elif aug_flag == 4:
-        #    return cv2.GaussianBlur(image, (5, 5), 0)
-        elif aug_flag == 3:
-            aug_image = np.rot90(image, 1, (0, 1))
-            return cv2.GaussianBlur(aug_image, (3, 3), 0)
+        if aug_flag < 5:
+            for _ in range(aug_flag - 1):
+                image = np.rot90(image, 1, (0, 1))
+        else:
+            image = np.flip(image, 0)
+            for _ in range(aug_flag - 5):
+                image = np.rot90(image, 1, (0, 1))
+        return image

@@ -14,23 +14,25 @@ from keras.metrics import categorical_accuracy
 from keras.models import load_model
 from utils import LoggerCallback, CycleReduceLROnPlateau
 from keras_tqdm import TQDMCallback
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--name', help='Name of the network in format {base_clf}-{number}')
-    parser.add_argument('-e', '--epochs', type=int, help='Total number of epochs to train')
+    parser.add_argument('-e', '--epochs', type=int, help='Total # of epochs to train')
     parser.add_argument('-b', '--batch_size', type=int, default=16)
     parser.add_argument('-l', '--load', type=int, default=0, help='Load model to continue training from a given epoch')
-    parser.add_argument('-fe', '--f_epochs', type=int, default=0, help='Number of epochs w/ frozen base model')
+    parser.add_argument('-fe', '--f_epochs', type=int, default=0, help='# of epochs w/ frozen base model')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4, help='Initial learning rate')
-    parser.add_argument('-f', '--folds', type=int, default=1, help='Number of folds')
+    parser.add_argument('-f', '--folds', type=int, default=1, help='# of folds for KFold / # tries for bagging')
+    parser.add_argument('-bag', '--bagging', type=int, default=0, help='# of train samples for bagging')
     parser.add_argument('-cf', '--current_fold', type=int, default=1, help='Which fold is used for training')
     parser.add_argument('-s', '--seed', type=int, default=12017952)
     parser.add_argument('-x', '--extra', action='store_true', help='Enables extra train data')
+    parser.add_argument('-vx', '--val_extra', action='store_true', help='Enables extra validation data')
     parser.add_argument('-bal', '--balance', action='store_true', help='Enables sample balancing')
     parser.add_argument('-aug', '--augmentation', action='store_true', help='Enables augmentation during training')
-    parser.add_argument('-vl', '--val_length', type=int, default=0, help='Use random subsample of validation set')
+    parser.add_argument('-vl', '--val_length', type=int, default=0, help='Length of random validation subset')
     args = parser.parse_args()
 
     if args.extra and args.folds < 3:
@@ -53,8 +55,11 @@ if __name__ == '__main__':
         all_train_files = [file for file in all_train_files if os.path.basename(file).startswith('(')]
     extra_val_files = sorted([os.path.relpath(file, utils.VAL_DIR) for file in
                               glob(os.path.join(utils.VAL_DIR, '*', '*'))])
-    if args.folds > 1:
+    if args.folds > 1 or args.bagging:
         skf = StratifiedKFold(n_splits=args.folds, shuffle=True, random_state=args.seed)
+        if args.bagging:
+            # reversed in case of compability with SKF
+            skf = StratifiedShuffleSplit(n_splits=args.folds, test_size=args.bagging, random_state=args.seed)
         labels = [os.path.dirname(file) for file in all_train_files]
         train_idxs = []
         val_idxs = []
@@ -63,11 +68,14 @@ if __name__ == '__main__':
             train_idxs.append(train_idx)
             val_idxs.append(val_idx)
         train_idx = train_idxs[args.current_fold - 1]
-        val_idx = val_idxs[args.current_fold - 1]
         train_files = [all_train_files[idx] for idx in train_idx]
-        val_files = [all_train_files[idx] for idx in val_idx]
-        # need to redirect directory
-        utils.VAL_DIR = utils.TRAIN_DIR
+        if not args.vx:
+            val_idx = val_idxs[args.current_fold - 1]
+            val_files = [all_train_files[idx] for idx in val_idx]
+            # need to redirect directory
+            utils.VAL_DIR = utils.TRAIN_DIR
+        else:
+            val_files = extra_val_files
         model_name = f'fold{args.current_fold}'
         print(f'Current fold {args.current_fold}')
     else:
@@ -90,12 +98,12 @@ if __name__ == '__main__':
     model_args = {
         'optimizer': Adam(lr=args.learning_rate),
         'loss': binary_crossentropy}
-    if args.balance == 0:
-        monitor = 'val_categorical_accuracy'
-        model_args['metrics'] = [categorical_accuracy]
-    else:
-        monitor = 'val_weighted_categorical_accuracy'
-        model_args['weighted_metrics'] = [categorical_accuracy]
+    # if args.balance == 0:
+    monitor = 'val_categorical_accuracy'
+    model_args['metrics'] = [categorical_accuracy]
+    # else:
+    #     monitor = 'val_weighted_categorical_accuracy'
+    #     model_args['weighted_metrics'] = [categorical_accuracy]
 
     check_cb = ModelCheckpoint(
         filepath=MODEL_PATH + '-best.h5',
