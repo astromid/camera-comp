@@ -16,6 +16,14 @@ from utils import LoggerCallback, CycleReduceLROnPlateau
 from keras_tqdm import TQDMCallback
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 
+
+# try to handle gcp instance stopping
+def handler(signal, frame):
+    model.save(MODEL_PATH + '.h5')
+    print('Got SIGTERM (maybe GCP instance is going to shutdown), model saved successfully')
+    sys.exit(0)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--name', help='Name of the network in format {base_clf}-{number}')
@@ -85,13 +93,7 @@ if __name__ == '__main__':
 
     MODEL_PATH = os.path.join(MODEL_DIR, model_name)
 
-    # try to handle gcp instance stopping
-    def sigterm_handler(signal, frame):
-        model.save(MODEL_PATH + '.h5')
-        print('Got SIGTERM (maybe GCP instance is going to shutdown), model saved successfully')
-        sys.exit(0)
-
-    signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGTERM, handler)
 
     train_seq = TrainSequence(train_files, TRAIN_CONFIG)
     val_seq = ValSequence(val_files, TRAIN_CONFIG)
