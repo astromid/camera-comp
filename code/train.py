@@ -35,8 +35,8 @@ if __name__ == '__main__':
     parser.add_argument('-vl', '--val_length', type=int, default=0, help='Length of random validation subset')
     args = parser.parse_args()
 
-    if args.extra and args.folds < 3:
-        print('No way to load entire extra dataset into RAM')
+    if args.extra and (args.folds < 3 or not args.bagging):
+        print('No way to load entire extra dataset into RAM. Use folds or bagging modes')
         raise MemoryError
 
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
@@ -69,7 +69,7 @@ if __name__ == '__main__':
             val_idxs.append(val_idx)
         train_idx = train_idxs[args.current_fold - 1]
         train_files = [all_train_files[idx] for idx in train_idx]
-        if not args.vx:
+        if not args.val_extra:
             val_idx = val_idxs[args.current_fold - 1]
             val_files = [all_train_files[idx] for idx in val_idx]
             # need to redirect directory
