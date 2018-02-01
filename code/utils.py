@@ -257,22 +257,20 @@ class TrainSequence(ImageSequence):
         # image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
         image = jpeg4py.JPEG(os.path.join(TRAIN_DIR, label, filename))
         # if image don't have 3rd channel or even not an image at all :)
-        # try:
-        #     h, w, ch = image.shape
-        # except ValueError:
-        #     return None, None
-        # except AttributeError:
-        #     return None, None
         try:
             image.parse_header()
+            h, w, ch = image.decode().shape
         except jpeg4py.JPEGRuntimeError:
-            tqdm.write(f'Not a JPEG file in {label}/{filename}, discarded')
             return None, None
-        # discard some strange images with shape (_, _, 4)
-        # if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
-        #   return None, None
-        if image.height < 2 * CROP_SIDE or image.width < 2 * CROP_SIDE:
+        except ValueError:
             return None, None
+        except AttributeError:
+            return None, None
+        # discard some strange images which have shape different from (_, _, 3)
+        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
+            return None, None
+        # if image.height < 2 * CROP_SIDE or image.width < 2 * CROP_SIDE:
+        #     return None, None
         else:
             # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image, label
@@ -320,22 +318,20 @@ class ValSequence(ImageSequence):
         # image = cv2.imread(os.path.join(VAL_DIR, label, filename))
         image = jpeg4py.JPEG(os.path.join(VAL_DIR, label, filename))
         # if image don't have 3rd channel or even not an image at all :)
-        # try:
-        #     h, w, ch = image.shape
-        # except ValueError:
-        #     return None, None
-        # except AttributeError:
-        #     return None, None
         try:
             image.parse_header()
+            h, w, ch = image.decode().shape
         except jpeg4py.JPEGRuntimeError:
-            tqdm.write(f'Not a JPEG file in {label}/{filename}, discarded')
             return None, None
-        # discard some strange images with shape (_, _, 4)
-        # if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
-        #   return None, None
-        if image.height < 2 * CROP_SIDE or image.width < 2 * CROP_SIDE:
+        except ValueError:
             return None, None
+        except AttributeError:
+            return None, None
+        # discard some strange images which have shape different from (_, _, 3)
+        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
+            return None, None
+        # if image.height < 2 * CROP_SIDE or image.width < 2 * CROP_SIDE:
+        #     return None, None
         else:
             # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image, label
