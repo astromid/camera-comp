@@ -1,6 +1,7 @@
 import os
 import inspect
 import cv2
+import jpeg4py
 import numpy as np
 import keras.backend as K
 from glob import glob
@@ -187,7 +188,8 @@ class ImageSequence(Sequence):
     @staticmethod
     @jit
     def _prepare_image(args):
-        image, center = args
+        image_enc, center = args
+        image = image_enc.decode()
         if np.random.rand() < 0.3:
             manip_image = ImageSequence._crop_image((image, 2 * CROP_SIDE, center))
             manip_flag = np.random.choice([0, 0, 1, 1, 1, 1, 2, 2])
@@ -252,19 +254,23 @@ class TrainSequence(ImageSequence):
     def _load_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
-        image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
+        # image = cv2.imread(os.path.join(TRAIN_DIR, label, filename))
+        image = jpeg4py.JPEG(os.path.join(TRAIN_DIR, label, filename))
         # if image don't have 3rd channel or even not an image at all :)
-        try:
-            h, w, ch = image.shape
-        except ValueError:
-            return None, None
-        except AttributeError:
-            return None, None
+        # try:
+        #     h, w, ch = image.shape
+        # except ValueError:
+        #     return None, None
+        # except AttributeError:
+        #     return None, None
+        image.parse_header()
         # discard some strange images with shape (_, _, 4)
-        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
+        # if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
+        #   return None, None
+        if image.height < 2 * CROP_SIDE or image.width < 2 * CROP_SIDE:
             return None, None
         else:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image, label
 
 
@@ -307,20 +313,24 @@ class ValSequence(ImageSequence):
     def _load_image(file):
         label = os.path.dirname(file)
         filename = os.path.basename(file)
-        image = cv2.imread(os.path.join(VAL_DIR, label, filename))
+        # image = cv2.imread(os.path.join(VAL_DIR, label, filename))
+        image = jpeg4py.JPEG(os.path.join(VAL_DIR, label, filename))
         # if image don't have 3rd channel or even not an image at all :)
-        try:
-            h, w, ch = image.shape
-        except ValueError:
-            return None, None
-        except AttributeError:
-            return None, None
+        # try:
+        #     h, w, ch = image.shape
+        # except ValueError:
+        #     return None, None
+        # except AttributeError:
+        #     return None, None
+        image.parse_header()
         # discard some strange images with shape (_, _, 4)
-        if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
+        # if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
+        #   return None, None
+        if image.height < 2 * CROP_SIDE or image.width < 2 * CROP_SIDE:
             return None, None
         else:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            return ImageSequence._crop_image((image, 2 * CROP_SIDE, True)), label
+            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            return image, label
 
 
 class TestSequence(ImageSequence):

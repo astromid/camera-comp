@@ -43,10 +43,6 @@ if __name__ == '__main__':
     parser.add_argument('-vl', '--val_length', type=int, default=0, help='Length of random validation subset')
     args = parser.parse_args()
 
-    if args.extra and (args.folds < 3 or not args.bagging):
-        print('No way to load entire extra dataset into RAM. Use folds or bagging modes')
-        raise MemoryError
-
     MODEL_DIR = os.path.join(utils.ROOT_DIR, 'models', args.name)
     CLF_NAME = args.name.split('-')[0]
     TRAIN_CONFIG = {
