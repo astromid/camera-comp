@@ -263,7 +263,11 @@ class TrainSequence(ImageSequence):
         #     return None, None
         # except AttributeError:
         #     return None, None
-        image.parse_header()
+        try:
+            image.parse_header()
+        except jpeg4py.JPEGRuntimeError:
+            tqdm.write(f'Not a JPEG file in {label}/{filename}, discarded')
+            return None, None
         # discard some strange images with shape (_, _, 4)
         # if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
         #   return None, None
@@ -322,7 +326,11 @@ class ValSequence(ImageSequence):
         #     return None, None
         # except AttributeError:
         #     return None, None
-        image.parse_header()
+        try:
+            image.parse_header()
+        except jpeg4py.JPEGRuntimeError:
+            tqdm.write(f'Not a JPEG file in {label}/{filename}, discarded')
+            return None, None
         # discard some strange images with shape (_, _, 4)
         # if h < 2 * CROP_SIDE or w < 2 * CROP_SIDE or ch != 3:
         #   return None, None
