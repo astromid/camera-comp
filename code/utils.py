@@ -25,6 +25,17 @@ LABELS = [
     'Samsung-Galaxy-Note3',
     'Samsung-Galaxy-S4',
     'Sony-NEX-7']
+ROTATION_ALLOWED = [
+    True,
+    False,
+    False,
+    True,
+    True,
+    True,
+    True,
+    False,
+    False,
+    False]
 N_CLASS = len(LABELS)
 ROOT_DIR = '..'
 TRAIN_DIR = os.path.join(ROOT_DIR, 'data', 'train')
@@ -95,6 +106,9 @@ class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
+        self.model.save(self.filepath + '.h5')
+        if self.verbose > 0:
+            print('Epoch %05d: Model snapshot successfully saved' % (epoch + 1))
         lr = float(K.get_value(self.model.optimizer.lr))
         if np.isclose(lr, self.min_lr):
             self.min_lr_counter += 1
@@ -152,7 +166,8 @@ class ImageSequence(Sequence):
             manip_flags.append(manip_flag)
         if self.augmentation:
             augmented_batch = []
-            for image in self.p.imap(self._augment_image, images_batch):
+            args = list(zip(images_batch, label_ids))
+            for image in self.p.imap(self._augment_image, args):
                 augmented_batch.append(image)
             images_batch = augmented_batch
         labels_batch = []
@@ -213,12 +228,14 @@ class ImageSequence(Sequence):
 
     @staticmethod
     @jit
-    def _augment_image(image):
-        for _ in range(4):
+    def _augment_image(args):
+        image, flag = args
+        if flag:
+            for _ in range(4):
+                if np.random.rand() < 0.5:
+                    image = np.rot90(image, 1, (0, 1))
             if np.random.rand() < 0.5:
-                image = np.rot90(image, 1, (0, 1))
-        if np.random.rand() < 0.5:
-            image = np.flip(image, 0)
+                image = np.flip(image, 0)
         return image
 
 
