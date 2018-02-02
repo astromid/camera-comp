@@ -79,7 +79,9 @@ class LoggerCallback(Callback):
 
     def __init__(self, logpath):
         super().__init__()
-        with open(logpath + '-train.log', 'a') as logfile:
+        self.logpath = logpath
+        with open(self.logpath + '-train.log', 'a') as logfile:
+            logfile.write('-------------------------------\n')
             logfile.write(f'Train started at {time.time()}\n')
 
     def on_epoch_end(self, epoch, logs={}):
@@ -92,7 +94,7 @@ class LoggerCallback(Callback):
         epoch_output = 'Epoch {value:05d}: '.format(value=(epoch + 1))
         output = epoch_output + ', '.join(strings)
         print(output)
-        with open(logpath + '-train.log', 'a') as logfile:
+        with open(self.logpath + '-train.log', 'a') as logfile:
             logfile.write(output + '\n')
 
     def on_train_end(self):
