@@ -229,7 +229,8 @@ class ImageSequence(Sequence):
     @staticmethod
     @jit
     def _augment_image(args):
-        image, flag = args
+        image, label_id = args
+        flag = ROTATION_ALLOWED[label_id]
         if flag:
             for _ in range(4):
                 if np.random.rand() < 0.5:
