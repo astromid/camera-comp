@@ -2,6 +2,7 @@ import os
 import inspect
 import cv2
 import jpeg4py
+import time
 import numpy as np
 import keras.backend as K
 from glob import glob
@@ -76,8 +77,10 @@ inspect.builtins.print = tqdm_print
 
 class LoggerCallback(Callback):
 
-    def __init__(self):
+    def __init__(self, logpath):
         super().__init__()
+        with open(logpath + '-train.log', 'a') as logfile:
+            logfile.write(f'Train started at {time.time()}\n')
 
     def on_epoch_end(self, epoch, logs={}):
         metrics = self.params['metrics']
@@ -89,6 +92,11 @@ class LoggerCallback(Callback):
         epoch_output = 'Epoch {value:05d}: '.format(value=(epoch + 1))
         output = epoch_output + ', '.join(strings)
         print(output)
+        with open(logpath + '-train.log', 'a') as logfile:
+            logfile.write(output + '\n')
+
+    def on_train_end(self):
+        self.logfile.close()
 
 
 class CycleReduceLROnPlateau(ReduceLROnPlateau):

@@ -118,7 +118,7 @@ if __name__ == '__main__':
         epsilon=0.0001,
         min_lr=1e-8)
     tb_cb = TensorBoard(MODEL_DIR, batch_size=args.batch_size)
-    log_cb = LoggerCallback()
+    log_cb = LoggerCallback(logpath=MODEL_PATH)
     tqdm_cb = TQDMCallback(leave_inner=False)
     cb_f = [log_cb, tqdm_cb]
     cb_e = [check_cb, cycle_cb, tb_cb, log_cb, tqdm_cb]
