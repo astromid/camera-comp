@@ -84,7 +84,7 @@ class LoggerCallback(Callback):
             logfile.write('-------------------------------\n')
             logfile.write(f'Train started at {time.time()}\n')
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
         metrics = self.params['metrics']
         metric_format = '{name}: {value:0.5f}'
         strings = [metric_format.format(
@@ -97,7 +97,7 @@ class LoggerCallback(Callback):
         with open(self.logpath + '-train.log', 'a') as logfile:
             logfile.write(output + '\n')
 
-    def on_train_end(self):
+    def on_train_end(self, epoch, logs=None):
         self.logfile.close()
 
 
