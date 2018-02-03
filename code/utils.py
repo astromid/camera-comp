@@ -97,9 +97,6 @@ class LoggerCallback(Callback):
         with open(self.logpath + '-train.log', 'a') as logfile:
             logfile.write(output + '\n')
 
-    def on_train_end(self, epoch, logs=None):
-        self.logfile.close()
-
 
 class CycleReduceLROnPlateau(ReduceLROnPlateau):
 
